@@ -1,0 +1,77 @@
+# AgentGate Policy — Golden Path Demo
+# This policy demonstrates all rule types and detectors.
+# Copy this file to agentgate.yaml and customize for your project.
+#
+# Usage:
+#   agentgate init        # copies this file
+#   agentgate start -- npx -y @modelcontextprotocol/server-filesystem /data
+
+version: "0.1"
+
+# Global settings
+settings:
+  default_decision: allow     # allow | block — what happens when no rule matches
+  log_level: info             # debug | info | warn | error
+
+# Built-in detectors (enabled/disabled globally)
+# These run before any policy rules and cannot be overridden.
+detectors:
+  sql_injection: true
+  path_traversal: true
+  command_injection: true
+  ssrf_private_ip: true
+  secrets_in_params: true
+
+# Policy rules (evaluated top-to-bottom)
+policies:
+  # 1. Allowlist — only these tools may be called
+  - name: only-safe-tools
+    type: tool_allow
+    tools:
+      - read_file
+      - write_file
+      - list_directory
+      - send_email
+
+  # 2. Blocklist — these tools are never allowed (takes precedence over allowlist)
+  - name: no-destructive-ops
+    type: tool_block
+    tools:
+      - delete_file
+      - execute_shell
+
+  # 3. Parameter rule — restrict file access to /data/workspace/
+  - name: sandboxed-files
+    type: param_rule
+    match:
+      tool: read_file
+    check:
+      param: path
+      op: starts_with
+      value: "/data/workspace/"
+      negate: true              # block if path does NOT start with /data/workspace/
+    message: "File access restricted to /data/workspace/"
+
+  # 4. Parameter rule — restrict email recipients to internal addresses
+  - name: internal-email-only
+    type: param_rule
+    match:
+      tool: send_email
+    check:
+      param: to
+      op: matches
+      value: ".*@mycompany\\.com$"
+      negate: true              # block if recipient is NOT @mycompany.com
+    message: "Emails may only be sent to @mycompany.com addresses"
+
+  # 5. Chain rule — block exfiltration after reading sensitive data
+  - name: block-exfil-after-sensitive-read
+    type: chain_rule
+    window: 5
+    steps:
+      - tool: read_file
+        output_matches: "BEGIN.*PRIVATE KEY|password|api[_-]?key"
+      - tool: send_email
+        param_matches:
+          to: "^(?!.*@mycompany\\.com$).*$"
+    message: "Blocked: sending email after reading sensitive data"
