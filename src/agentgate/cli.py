@@ -18,8 +18,14 @@ def init() -> None:
 
 
 @main.command()
+@click.option(
+    "--policy",
+    default="agentgate.yaml",
+    type=click.Path(),
+    help="Path to the policy file (default: agentgate.yaml).",
+)
 @click.argument("server_command", nargs=-1, required=True)
-def start(server_command: tuple[str, ...]) -> None:
+def start(policy: str, server_command: tuple[str, ...]) -> None:
     """Start the AgentGate proxy wrapping an MCP server.
 
     Usage: agentgate start -- npx -y @modelcontextprotocol/server-filesystem /data

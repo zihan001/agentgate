@@ -1,0 +1,17 @@
+# Minimal policy — detectors only, no custom rules.
+# All built-in detectors are enabled; no tool allow/block rules.
+
+version: "1"
+
+settings:
+  default_decision: allow
+  log_level: info
+
+detectors:
+  sql_injection: true
+  path_traversal: true
+  command_injection: true
+  ssrf_private_ip: true
+  secrets_in_params: true
+
+policies: []

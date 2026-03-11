@@ -1,0 +1,16 @@
+# Permissive policy — log-only (default allow, all detectors on).
+# TODO: Populate with permissive policy example
+version: "1"
+
+settings:
+  default_decision: allow
+  log_level: info
+
+detectors:
+  sql_injection: true
+  path_traversal: true
+  command_injection: true
+  ssrf_private_ip: true
+  secrets_in_params: true
+
+policies: []

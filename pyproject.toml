@@ -28,6 +28,9 @@ agentgate = "agentgate.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/agentgate"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"agentgate.yaml.example" = "agentgate/agentgate.yaml.example"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

@@ -1,0 +1,16 @@
+# Restrictive policy — full sandbox + email allowlist + chain rules.
+# TODO: Populate with full restrictive policy example
+version: "1"
+
+settings:
+  default_decision: block
+  log_level: info
+
+detectors:
+  sql_injection: true
+  path_traversal: true
+  command_injection: true
+  ssrf_private_ip: true
+  secrets_in_params: true
+
+policies: []
