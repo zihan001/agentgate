@@ -77,7 +77,9 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `tests/test_engine.py` — 10 rule engine tests (sync, no I/O)
 - `tests/test_proxy.py` — 5 integration tests for the stdio proxy
 - `tests/test_proxy_policy.py` — 8 integration tests for proxy + policy engine wiring (allow, block, passthrough, error format, mixed decisions)
+- `tests/test_integration.py` — 6 PR1 integration tests (blocklist precedence, CLI entry point, golden path policy, latency, stress, fixture validation)
 - `tests/test_cli.py` — 7 CLI tests (CliRunner for arg validation, subprocess for banner/error handling)
+- `tests/conftest.py` — Shared fixtures: `echo_server_cmd`, `proxy_process`, `proxy_with_policy`, `make_tool_call`, `compiled_policy_from_yaml`, `sample_policy`, `minimal_policy`
 - `tests/helpers/echo_mcp_server.py` — Minimal MCP server for proxy tests (no Node.js dependency)
 - `tests/helpers/mcp_client.py` — Shared test helpers (`send_message`, `read_message`, `do_initialize`)
 - `tests/helpers/proxy_with_policy.py` — Test harness for spawning proxy with a policy via env var

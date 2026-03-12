@@ -9,6 +9,9 @@ from pathlib import Path
 
 import pytest
 
+from agentgate.models import PolicyConfig, ToolCall
+from agentgate.policy import CompiledPolicy, load_and_compile
+
 # Path to the echo MCP server used by proxy tests
 ECHO_SERVER_PATH = str(Path(__file__).parent / "helpers" / "echo_mcp_server.py")
 
@@ -87,3 +90,52 @@ def proxy_with_policy(tmp_path, echo_server_cmd):
                 except subprocess.TimeoutExpired:
                     proc.kill()
                     proc.wait()
+
+
+# ---------------------------------------------------------------------------
+# Shared fixtures for PR2+ reuse
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def make_tool_call():
+    """Factory: build a ToolCall with defaults."""
+
+    def _make(
+        tool_name: str = "echo_tool",
+        arguments: dict | None = None,
+        call_id: int | str | None = 1,
+    ) -> ToolCall:
+        return ToolCall(
+            tool_name=tool_name,
+            arguments=arguments or {},
+            call_id=call_id,
+        )
+
+    return _make
+
+
+@pytest.fixture()
+def compiled_policy_from_yaml(tmp_path):
+    """Factory: compile a YAML policy string into a CompiledPolicy."""
+
+    def _compile(yaml_content: str) -> CompiledPolicy:
+        policy_path = tmp_path / "test_policy.yaml"
+        policy_path.write_text(yaml_content, encoding="utf-8")
+        return load_and_compile(str(policy_path))
+
+    return _compile
+
+
+@pytest.fixture()
+def sample_policy() -> CompiledPolicy:
+    """Load agentgate.yaml.example as a CompiledPolicy. Proves the golden path config is valid."""
+    example_path = Path(__file__).parent.parent / "agentgate.yaml.example"
+    return load_and_compile(str(example_path))
+
+
+@pytest.fixture()
+def minimal_policy() -> CompiledPolicy:
+    """A minimal allow-all policy with no rules. Default decision: allow."""
+    config = PolicyConfig(version="0.1")
+    return CompiledPolicy(config=config, regexes={})
