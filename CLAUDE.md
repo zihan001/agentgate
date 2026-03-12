@@ -47,7 +47,7 @@ Agent → Parser → Detectors → Rule Engine → Decision (allow/block) → To
 | `proxy.py` | Stdio MCP proxy — LSP-framed bidirectional relay with policy interception (`read_message`, `write_message`, `_intercepting_relay`, `StdioProxy`) — **implemented** |
 | `session.py` | Sliding-window deque of recent calls for chain detection (stub) |
 | `audit.py` | Async SQLite writer with SHA-256 hash chaining (stub) |
-| `cli.py` | Click CLI: `init` (stub), `start` (loads policy + wires to `StdioProxy`), `logs` (stub) |
+| `cli.py` | Click CLI: `init` (stub), `start` (hardened — env var override, `--verbose`, startup banner, error handling), `logs` (stub) — **implemented** |
 
 ### Detectors (`src/agentgate/detectors/`) — all stubs
 
@@ -77,6 +77,7 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `tests/test_engine.py` — 10 rule engine tests (sync, no I/O)
 - `tests/test_proxy.py` — 5 integration tests for the stdio proxy
 - `tests/test_proxy_policy.py` — 8 integration tests for proxy + policy engine wiring (allow, block, passthrough, error format, mixed decisions)
+- `tests/test_cli.py` — 7 CLI tests (CliRunner for arg validation, subprocess for banner/error handling)
 - `tests/helpers/echo_mcp_server.py` — Minimal MCP server for proxy tests (no Node.js dependency)
 - `tests/helpers/mcp_client.py` — Shared test helpers (`send_message`, `read_message`, `do_initialize`)
 - `tests/helpers/proxy_with_policy.py` — Test harness for spawning proxy with a policy via env var
