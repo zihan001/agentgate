@@ -6,6 +6,10 @@ import asyncio
 import logging
 import sys
 
+from agentgate.engine import evaluate
+from agentgate.parser import build_error_response, parse_message
+from agentgate.policy import CompiledPolicy
+
 log = logging.getLogger("agentgate.proxy")
 
 
@@ -60,6 +64,48 @@ async def _relay(
         await write_message(writer, msg)
 
 
+async def _intercepting_relay(
+    reader: asyncio.StreamReader,
+    server_writer: asyncio.StreamWriter | asyncio.WriteTransport,
+    agent_writer: asyncio.StreamWriter | asyncio.WriteTransport,
+    policy: CompiledPolicy,
+    label: str,
+) -> None:
+    """Relay with policy interception: parse tool calls, evaluate, block or forward."""
+    while True:
+        payload = await read_message(reader)
+        if payload is None:
+            log.debug("%s: EOF", label)
+            break
+
+        parsed = parse_message(payload)
+
+        if parsed.kind == "tool_call" and parsed.tool_call is not None:
+            decision = evaluate(parsed.tool_call, policy)
+            log.debug(
+                "%s: %s -> %s (rule=%s)",
+                label,
+                parsed.tool_call.tool_name,
+                decision.action,
+                decision.matched_rule,
+            )
+            if decision.action == "block":
+                error_data = {
+                    "matched_rule": decision.matched_rule,
+                    "matched_detector": decision.matched_detector,
+                    "message": decision.message,
+                }
+                error_payload = build_error_response(
+                    parsed.request_id, -32600, "Tool call blocked by policy", data=error_data
+                )
+                await write_message(agent_writer, error_payload)
+                continue
+
+        # Allow: forward original bytes (zero re-serialization)
+        log.debug("%s: forwarding %d bytes", label, len(payload))
+        await write_message(server_writer, payload)
+
+
 async def _pipe_stderr(child_stderr: asyncio.StreamReader) -> None:
     """Pipe child stderr to proxy stderr, line by line."""
     while True:
@@ -78,8 +124,9 @@ class StdioProxy:
     stdin/stdout.
     """
 
-    def __init__(self, command: list[str]) -> None:
+    def __init__(self, command: list[str], policy: CompiledPolicy | None = None) -> None:
         self.command = command
+        self.policy = policy
 
     async def run(self) -> int:
         """Run the proxy. Returns the child process exit code."""
@@ -108,7 +155,16 @@ class StdioProxy:
         log.debug("Spawned child process PID %d: %s", child.pid, self.command)
 
         # Create relay tasks
-        agent_to_server = asyncio.create_task(_relay(agent_reader, child.stdin, "agent->server"))
+        if self.policy is not None:
+            agent_to_server = asyncio.create_task(
+                _intercepting_relay(
+                    agent_reader, child.stdin, agent_write_transport, self.policy, "agent->server"
+                )
+            )
+        else:
+            agent_to_server = asyncio.create_task(
+                _relay(agent_reader, child.stdin, "agent->server")
+            )
         server_to_agent = asyncio.create_task(
             _relay(child.stdout, agent_write_transport, "server->agent")
         )
