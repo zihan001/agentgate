@@ -43,7 +43,7 @@ Agent → Parser → Detectors → Rule Engine → Decision (allow/block) → To
 | `models.py` | Pydantic data contracts (ToolCall, Decision, PolicyConfig, rules) — **implemented** |
 | `parser.py` | JSON-RPC message parsing (`ParsedMessage`, `parse_message()`, `build_error_response()`) — **implemented** |
 | `policy.py` | YAML policy loader & regex compilation (`load_policy()`, `compile_regexes()`, `load_and_compile()`, `PolicyLoadError`, `CompiledPolicy`) — **implemented** |
-| `engine.py` | Top-to-bottom rule evaluation (stub) |
+| `engine.py` | Top-to-bottom rule evaluation (`evaluate()` — tool_block, tool_allow, default decision) — **implemented** |
 | `proxy.py` | Stdio MCP proxy — LSP-framed bidirectional relay (`read_message`, `write_message`, `StdioProxy`) — **implemented** |
 | `session.py` | Sliding-window deque of recent calls for chain detection (stub) |
 | `audit.py` | Async SQLite writer with SHA-256 hash chaining (stub) |
@@ -67,12 +67,14 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `src/agentgate/models.py` — Core Pydantic contracts (fully implemented)
 - `src/agentgate/parser.py` — JSON-RPC parser: classifies messages by kind, extracts `ToolCall` from `tools/call` requests (fully implemented)
 - `src/agentgate/policy.py` — YAML policy loader: two-phase load (parse → compile), `PolicyLoadError` exception, `CompiledPolicy` dataclass with pre-compiled regex map (fully implemented)
+- `src/agentgate/engine.py` — Rule engine: `evaluate()` checks tool_block, tool_allow, and default decision with correct precedence (fully implemented, steps 1/4/5 deferred)
 - `src/agentgate/proxy.py` — Stdio proxy with `read_message`/`write_message` I/O primitives (fully implemented)
 - `agentgate.yaml.example` — Golden-path policy demonstrating all features
 - `docs/mvp-spec.md` — Frozen MVP specification with success criteria and evaluation plan
 - `tests/test_parser.py` — 12 parser unit tests (sync, no I/O)
 - `tests/test_models.py` — 11 model validation tests
 - `tests/test_policy.py` — 10 policy loader tests (sync, tmp_path I/O only)
+- `tests/test_engine.py` — 10 rule engine tests (sync, no I/O)
 - `tests/test_proxy.py` — 5 integration tests for the stdio proxy
 - `tests/helpers/echo_mcp_server.py` — Minimal MCP server for proxy tests (no Node.js dependency)
 - `.github/CONTRIBUTING.md` — Dev setup and PR process
