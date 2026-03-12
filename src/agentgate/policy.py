@@ -47,9 +47,7 @@ def load_policy(path: str | Path) -> PolicyConfig:
         raise PolicyLoadError("Policy file is empty")
 
     if not isinstance(data, dict):
-        raise PolicyLoadError(
-            f"Policy file must be a YAML mapping, got {type(data).__name__}"
-        )
+        raise PolicyLoadError(f"Policy file must be a YAML mapping, got {type(data).__name__}")
 
     try:
         return PolicyConfig(**data)
@@ -75,8 +73,7 @@ def compile_regexes(config: PolicyConfig) -> CompiledPolicy:
                 regexes[key] = re.compile(rule.check.value)
             except re.error as e:
                 raise PolicyLoadError(
-                    f"Rule '{rule.name}' (param_rule): "
-                    f"invalid regex in check.value: {e}"
+                    f"Rule '{rule.name}' (param_rule): invalid regex in check.value: {e}"
                 ) from e
 
         elif isinstance(rule, ChainRule):

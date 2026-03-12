@@ -31,10 +31,22 @@ def start(policy: str, server_command: tuple[str, ...]) -> None:
     Usage: agentgate start -- npx -y @modelcontextprotocol/server-filesystem /data
     """
     import asyncio
+    from pathlib import Path
 
     from agentgate.proxy import StdioProxy
 
-    proxy = StdioProxy(list(server_command))
+    compiled_policy = None
+    policy_path = Path(policy)
+    if policy_path.exists():
+        from agentgate.policy import PolicyLoadError, load_and_compile
+
+        try:
+            compiled_policy = load_and_compile(policy_path)
+        except PolicyLoadError as e:
+            click.echo(f"Error loading policy: {e}", err=True)
+            raise SystemExit(1)
+
+    proxy = StdioProxy(list(server_command), policy=compiled_policy)
     raise SystemExit(asyncio.run(proxy.run()))
 
 

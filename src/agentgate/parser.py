@@ -60,13 +60,20 @@ def parse_message(payload: bytes) -> ParsedMessage:
     return ParsedMessage(kind="request", raw=payload, request_id=request_id, method=method)
 
 
-def build_error_response(request_id: str | int, code: int, message: str) -> bytes:
+def build_error_response(
+    request_id: str | int, code: int, message: str, data: dict | None = None
+) -> bytes:
     """Build a JSON-RPC error response payload as bytes (not LSP-framed).
 
     The caller wraps this with write_message() which adds Content-Length framing.
     """
-    return json.dumps({
-        "jsonrpc": "2.0",
-        "id": request_id,
-        "error": {"code": code, "message": message},
-    }).encode()
+    error_obj: dict = {"code": code, "message": message}
+    if data is not None:
+        error_obj["data"] = data
+    return json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "error": error_obj,
+        }
+    ).encode()

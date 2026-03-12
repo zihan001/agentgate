@@ -15,12 +15,14 @@ def _encode(obj: dict) -> bytes:
 
 
 def test_parse_tools_call():
-    payload = _encode({
-        "jsonrpc": "2.0",
-        "id": 3,
-        "method": "tools/call",
-        "params": {"name": "read_file", "arguments": {"path": "/etc/passwd"}},
-    })
+    payload = _encode(
+        {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {"name": "read_file", "arguments": {"path": "/etc/passwd"}},
+        }
+    )
     parsed = parse_message(payload)
     assert parsed.kind == "tool_call"
     assert parsed.tool_call is not None
@@ -33,12 +35,14 @@ def test_parse_tools_call():
 
 
 def test_parse_tools_call_empty_arguments():
-    payload = _encode({
-        "jsonrpc": "2.0",
-        "id": 5,
-        "method": "tools/call",
-        "params": {"name": "list_files"},
-    })
+    payload = _encode(
+        {
+            "jsonrpc": "2.0",
+            "id": 5,
+            "method": "tools/call",
+            "params": {"name": "list_files"},
+        }
+    )
     parsed = parse_message(payload)
     assert parsed.kind == "tool_call"
     assert parsed.tool_call is not None
@@ -80,11 +84,13 @@ def test_parse_initialized_notification():
 
 
 def test_parse_response_with_result():
-    payload = _encode({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "result": {"protocolVersion": "2024-11-05"},
-    })
+    payload = _encode(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {"protocolVersion": "2024-11-05"},
+        }
+    )
     parsed = parse_message(payload)
     assert parsed.kind == "response"
     assert parsed.request_id == 1
@@ -92,11 +98,13 @@ def test_parse_response_with_result():
 
 
 def test_parse_error_response():
-    payload = _encode({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "error": {"code": -32601, "message": "Method not found"},
-    })
+    payload = _encode(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "error": {"code": -32601, "message": "Method not found"},
+        }
+    )
     parsed = parse_message(payload)
     assert parsed.kind == "response"
     assert parsed.request_id == 1
@@ -119,12 +127,14 @@ def test_parse_json_not_object():
 
 
 def test_parse_tools_call_missing_name():
-    payload = _encode({
-        "jsonrpc": "2.0",
-        "id": 4,
-        "method": "tools/call",
-        "params": {"arguments": {"x": 1}},
-    })
+    payload = _encode(
+        {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "tools/call",
+            "params": {"arguments": {"x": 1}},
+        }
+    )
     parsed = parse_message(payload)
     assert parsed.kind == "invalid"
 
@@ -147,12 +157,14 @@ def test_build_error_response():
 
 def test_raw_bytes_preserved_for_all_kinds():
     payloads = {
-        "tool_call": _encode({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "tools/call",
-            "params": {"name": "t", "arguments": {}},
-        }),
+        "tool_call": _encode(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "t", "arguments": {}},
+            }
+        ),
         "request": _encode({"jsonrpc": "2.0", "id": 1, "method": "initialize"}),
         "notification": _encode({"jsonrpc": "2.0", "method": "initialized"}),
         "response": _encode({"jsonrpc": "2.0", "id": 1, "result": {}}),
