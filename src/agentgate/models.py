@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # --- Tool call and decision models ---
@@ -67,6 +67,8 @@ class Settings(BaseModel):
 
 class DetectorsConfig(BaseModel):
     """Toggle built-in detectors on/off."""
+
+    model_config = ConfigDict(extra="forbid")
 
     sql_injection: bool = True
     path_traversal: bool = True
