@@ -30,7 +30,12 @@ def start(policy: str, server_command: tuple[str, ...]) -> None:
 
     Usage: agentgate start -- npx -y @modelcontextprotocol/server-filesystem /data
     """
-    click.echo("Not yet implemented. Coming in PR1.")
+    import asyncio
+
+    from agentgate.proxy import StdioProxy
+
+    proxy = StdioProxy(list(server_command))
+    raise SystemExit(asyncio.run(proxy.run()))
 
 
 @main.command()
