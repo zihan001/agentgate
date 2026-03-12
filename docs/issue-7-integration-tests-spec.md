@@ -29,7 +29,7 @@ This is a consolidation issue, not a feature issue. No new modules. No new data 
 - 6 new integration tests in `tests/test_integration.py` that test scenarios not already covered by `test_proxy.py` or `test_proxy_policy.py`
 - 4 shared fixtures added to `tests/conftest.py`: `sample_policy`, `minimal_policy`, `make_tool_call`, `compiled_policy_from_yaml`
 - Verify the full `agentgate start --policy <file> -- <cmd>` path works via subprocess (CLI as entry point, not just the Python harness)
-- Verify latency overhead is reasonable (< 50ms per call — not the final P1 target of 15ms, but a sanity check)
+- Verify median absolute round-trip < 200ms in test environment (smoke test; delta comparison deferred to PR3 evaluation)
 
 ### Out of scope
 
@@ -102,9 +102,9 @@ Before defining new tests, here's what the existing 63 tests already cover:
 
 ### Decision 4: Latency test measures wall-clock time for a tool call round-trip
 
-**Choice:** Time the interval between sending a `tools/call` message and receiving the response, with and without policy, and assert the overhead is < 50ms.
+**Choice:** Time the interval between sending a `tools/call` message and receiving the response, and assert the median absolute round-trip is < 200ms. Delta comparison against a no-policy baseline is deferred to PR3 evaluation.
 
-**Rationale:** The MVP spec targets < 15ms median overhead (P1). 50ms is a generous upper bound for a sanity check — if we're above 50ms in a test with an in-process echo server, something is fundamentally wrong. The real latency measurement with p99 stats is PR3 evaluation work. This is just a smoke test.
+**Rationale:** The echo server responds instantly. The proxy adds parsing + engine evaluation + re-framing. In a test environment with subprocess pipes, 200ms total is generous and catches catastrophic regressions (e.g., recompiling regexes per request). The real latency measurement with p99 stats and overhead deltas is PR3 evaluation work. This is just a smoke test.
 
 ### Decision 5: Fixtures use factory patterns, not static objects
 
@@ -223,9 +223,9 @@ All tests are integration tests. They spawn proxy subprocesses and communicate v
 
 **Setup:** Policy = `ALLOW_ECHO`. Spawn proxy.  
 **Action:** Initialize. Send 10 consecutive `tools/call` messages for `echo_tool`. Measure wall-clock time for each send-to-receive round trip.  
-**Assert:** Median round-trip time < 200ms. Overhead vs no-policy proxy < 50ms.
+**Assert:** Median absolute round-trip time < 200ms.
 
-**Why this threshold:** The echo server responds instantly. The proxy adds parsing + engine evaluation + re-framing. In a test environment with subprocess pipes, 200ms total is generous. The 50ms overhead ceiling is well above the 15ms MVP target but catches regressions like "accidentally calling `re.compile` on every request" or "blocking on a synchronous file read in the hot path."
+**Why this threshold:** The echo server responds instantly. The proxy adds parsing + engine evaluation + re-framing. In a test environment with subprocess pipes, 200ms total is generous and catches catastrophic regressions like "accidentally calling `re.compile` on every request" or "blocking on a synchronous file read in the hot path." Delta comparison against a no-policy baseline is deferred to PR3 evaluation.
 
 **Note:** This is not the real performance evaluation (that's PR3). This is a "did we obviously break something?" guard rail.
 
@@ -285,7 +285,7 @@ All tests are integration tests. They spawn proxy subprocesses and communicate v
 | AC-1 | Blocklist-beats-allowlist works through the live proxy (not just unit engine) | Test 1 |
 | AC-2 | `agentgate start` CLI as entry point correctly proxies tool calls with policy enforcement | Test 2 |
 | AC-3 | `agentgate.yaml.example` loads, compiles, and evaluates correctly | Tests 3, 6 |
-| AC-4 | Proxy overhead < 50ms per call in test environment | Test 4 |
+| AC-4 | Median absolute round-trip < 200ms in test environment | Test 4 |
 | AC-5 | No message corruption or ordering bugs under rapid sequential load | Test 5 |
 | AC-6 | Shared fixtures (`make_tool_call`, `compiled_policy_from_yaml`, `sample_policy`, `minimal_policy`) are importable and work | Test 6 + successful import by test file |
 | AC-7 | All existing tests (63) still pass | `pytest` full suite |
@@ -297,7 +297,7 @@ All tests are integration tests. They spawn proxy subprocesses and communicate v
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
 | **CLI binary path differs across environments** | Medium | Medium | Use the same `VENV_AGENTGATE` pattern from `test_cli.py`. If binary not found, skip test with `pytest.mark.skipif`. |
-| **Latency test is flaky under CI load** | Medium | Low | Use generous threshold (200ms total, 50ms overhead). If flaky, increase thresholds or mark as `pytest.mark.slow`. This is a smoke test, not a benchmark. |
+| **Latency test is flaky under CI load** | Medium | Low | Use generous absolute threshold (200ms). If flaky, increase threshold or mark as `pytest.mark.slow`. This is a smoke test, not a benchmark. Delta comparison deferred to PR3. |
 | **`agentgate.yaml.example` path is fragile** | Low | Low | Use `Path(__file__).parent.parent / "agentgate.yaml.example"` which is relative to the test file. The file is committed to repo root — stable. |
 | **20-call stress test is slow** | Low | Low | 20 calls at ~50ms each = ~1s. Acceptable for integration tests. |
 | **Existing fixtures break** | Very Low | High | No existing fixtures are modified. Only new fixtures are added. Run existing tests first to confirm. |
@@ -336,7 +336,7 @@ No source files are touched. No changes to `proxy.py`, `parser.py`, `policy.py`,
 - [ ] Blocklist-beats-allowlist verified through live proxy subprocess (not just unit engine)
 - [ ] `agentgate start` CLI verified as working entry point for proxied tool calls
 - [ ] `agentgate.yaml.example` verified as loadable, compilable, and evaluable
-- [ ] Latency overhead smoke-tested (< 50ms overhead per call)
+- [ ] Latency smoke-tested (median absolute round-trip < 200ms; delta comparison deferred to PR3)
 - [ ] No message corruption under 20 rapid sequential calls
 - [ ] `conftest.py` contains 4 new shared fixtures: `make_tool_call`, `compiled_policy_from_yaml`, `sample_policy`, `minimal_policy`
 - [ ] All existing tests (63) still pass
