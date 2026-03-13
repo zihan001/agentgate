@@ -159,9 +159,7 @@ class TestGoldenPathPolicy:
         policy = load_and_compile(EXAMPLE_POLICY_PATH)
 
         # read_file is on allowlist → allow
-        decision_allow = evaluate(
-            ToolCall(tool_name="read_file", arguments={}, call_id=1), policy
-        )
+        decision_allow = evaluate(ToolCall(tool_name="read_file", arguments={}, call_id=1), policy)
         assert decision_allow.action == "allow"
 
         # delete_file is on blocklist → block

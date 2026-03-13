@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from agentgate.detectors import run_all as run_detectors
 from agentgate.models import Decision, ToolAllowRule, ToolBlockRule, ToolCall
 from agentgate.policy import CompiledPolicy
 
@@ -19,8 +20,15 @@ def evaluate(tool_call: ToolCall, policy: CompiledPolicy) -> Decision:
     """
     rules = policy.config.policies
 
-    # --- Step 1: Detectors (Issue #26) ---
-    # Will short-circuit here if any detector fires
+    # --- Step 1: Detectors ---
+    detector_results = run_detectors(tool_call, policy.config.detectors.model_dump())
+    if detector_results:
+        first = detector_results[0]
+        return Decision(
+            action="block",
+            matched_detector=first.detector_name,
+            message=first.detail,
+        )
 
     # --- Step 2: tool_block ---
     block_rules = [r for r in rules if isinstance(r, ToolBlockRule)]

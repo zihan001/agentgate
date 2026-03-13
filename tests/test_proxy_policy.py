@@ -198,3 +198,34 @@ class TestMixedDecisions:
         r3 = read_message(proc)
         assert r3["id"] == 12
         assert "result" in r3
+
+
+# ---------------------------------------------------------------------------
+# Detector integration (Issue #26)
+# ---------------------------------------------------------------------------
+
+ALLOW_READ_FILE = """\
+version: "0.1"
+policies:
+  - name: allow-read
+    type: tool_allow
+    tools:
+      - read_file
+"""
+
+
+class TestDetectorBlocksViaProxy:
+    """Test 9: Detectors block tool calls end-to-end through the proxy."""
+
+    def test_path_traversal_blocked_via_proxy(self, proxy_with_policy) -> None:
+        proc = proxy_with_policy(ALLOW_READ_FILE)
+        do_initialize(proc)
+        send_message(
+            proc,
+            _tool_call_msg("read_file", 2, {"path": "/etc/passwd"}),
+        )
+        response = read_message(proc)
+        assert "error" in response
+        assert response["error"]["code"] == -32600
+        assert response["error"]["data"]["matched_detector"] == "path_traversal"
+        assert response["error"]["data"]["matched_rule"] is None
