@@ -121,3 +121,16 @@ def test_empty_arguments():
     result = detect(_call({}))
     assert not result.matched
     assert result.detector_name == "secrets_in_params"
+
+
+def test_stripe_secret_key():
+    # Use sk_test_ prefix (not sk_live_) to avoid GitHub push protection false positive
+    result = detect(_call({"key": "sk_test_" + "a" * 24}))
+    assert result.matched
+    assert "Stripe API key" in result.detail
+
+
+def test_bearer_token():
+    result = detect(_call({"header": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig"}))
+    assert result.matched
+    assert "Bearer authorization token" in result.detail

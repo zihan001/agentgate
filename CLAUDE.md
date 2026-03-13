@@ -51,6 +51,7 @@ Agent → Parser → Detectors → Rule Engine → Decision (allow/block) → To
 
 ### Detectors (`src/agentgate/detectors/`)
 
+- `_util.py` — Shared `extract_strings()` helper: recursively walks dicts, lists (including nested lists), and extracts all `(key_path, string_value)` pairs — **implemented**
 - `sql_injection.py` — Destructive SQL patterns (DROP, DELETE, UNION SELECT, tautologies, stacked queries) — **implemented**
 - `path_traversal.py` — Traversal sequences (`../`, encoded variants), sensitive absolute paths, null byte injection — **implemented**
 - `command_injection.py` — Shell metacharacters (`;`, `&&`, `|`, backticks, `$()`) with context-aware matching — **implemented**
@@ -78,11 +79,11 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `tests/test_proxy.py` — 5 integration tests for the stdio proxy
 - `tests/test_proxy_policy.py` — 9 integration tests for proxy + policy engine wiring (allow, block, passthrough, error format, mixed decisions, detector blocking)
 - `tests/test_integration.py` — 6 PR1 integration tests (blocklist precedence, CLI entry point, golden path policy, latency, stress, fixture validation)
-- `tests/test_detectors/test_sql_injection.py` — 16 SQL injection detector tests (7 positive, 7 negative, 2 edge cases; sync, no I/O)
+- `tests/test_detectors/test_sql_injection.py` — 20 SQL injection detector tests (7 positive, 7 negative, 2 edge cases + 4 additional coverage; sync, no I/O)
 - `tests/test_detectors/test_path_traversal.py` — 17 path traversal detector tests (8 positive, 7 negative, 2 edge cases; sync, no I/O)
 - `tests/test_detectors/test_command_injection.py` — 17 command injection detector tests (8 positive, 7 negative, 2 edge cases; sync, no I/O)
 - `tests/test_detectors/test_ssrf.py` — 17 SSRF detector tests (8 positive, 7 negative, 2 edge cases; sync, no I/O)
-- `tests/test_detectors/test_secrets.py` — 17 secrets detector tests (8 positive, 7 negative, 2 edge cases; sync, no I/O)
+- `tests/test_detectors/test_secrets.py` — 19 secrets detector tests (8 positive, 7 negative, 2 edge cases + 2 additional coverage; sync, no I/O)
 - `tests/test_detectors/test_registry.py` — 8 detector pipeline tests (run_all wiring, enable/disable, multi-detector; sync, no I/O)
 - `tests/test_cli.py` — 7 CLI tests (CliRunner for arg validation, subprocess for banner/error handling)
 - `tests/conftest.py` — Shared fixtures: `echo_server_cmd`, `proxy_process`, `proxy_with_policy`, `make_tool_call`, `compiled_policy_from_yaml`, `sample_policy`, `minimal_policy`
