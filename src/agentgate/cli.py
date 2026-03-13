@@ -61,8 +61,7 @@ def start(policy: str | None, verbose: bool, server_command: tuple[str, ...]) ->
     # --- Validate server command ---
     if not server_command:
         click.echo(
-            "Error: No server command provided.\n"
-            "Usage: agentgate start -- <command> [args...]",
+            "Error: No server command provided.\nUsage: agentgate start -- <command> [args...]",
             err=True,
         )
         raise SystemExit(1)
@@ -101,8 +100,7 @@ def start(policy: str | None, verbose: bool, server_command: tuple[str, ...]) ->
         raise SystemExit(130)
     except FileNotFoundError:
         click.echo(
-            f"Error: Command not found: '{server_command[0]}'. "
-            f"Is it installed and on your PATH?",
+            f"Error: Command not found: '{server_command[0]}'. Is it installed and on your PATH?",
             err=True,
         )
         raise SystemExit(1)
