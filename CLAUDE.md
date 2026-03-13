@@ -49,14 +49,14 @@ Agent → Parser → Detectors → Rule Engine → Decision (allow/block) → To
 | `audit.py` | Async SQLite writer with SHA-256 hash chaining (stub) |
 | `cli.py` | Click CLI: `init` (stub), `start` (hardened — env var override, `--verbose`, startup banner, error handling), `logs` (stub) — **implemented** |
 
-### Detectors (`src/agentgate/detectors/`) — all stubs
+### Detectors (`src/agentgate/detectors/`)
 
-- `path_traversal.py` — `../` and absolute path detection
-- `sql_injection.py` — Destructive SQL patterns (DROP, DELETE, UNION)
-- `command_injection.py` — Shell metacharacters (`;`, `&&`, `|`, backticks, `$()`)
-- `ssrf.py` — Private/loopback IP detection
-- `secrets.py` — AWS keys, tokens, passwords in params
-- `chain.py` — Sequential attack pattern matching
+- `sql_injection.py` — Destructive SQL patterns (DROP, DELETE, UNION SELECT, tautologies, stacked queries) — **implemented**
+- `path_traversal.py` — `../` and absolute path detection (stub)
+- `command_injection.py` — Shell metacharacters (`;`, `&&`, `|`, backticks, `$()`) (stub)
+- `ssrf.py` — Private/loopback IP detection (stub)
+- `secrets.py` — AWS keys, tokens, passwords in params (stub)
+- `chain.py` — Sequential attack pattern matching (stub)
 
 ### Policy Language (YAML)
 
@@ -78,6 +78,7 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `tests/test_proxy.py` — 5 integration tests for the stdio proxy
 - `tests/test_proxy_policy.py` — 8 integration tests for proxy + policy engine wiring (allow, block, passthrough, error format, mixed decisions)
 - `tests/test_integration.py` — 6 PR1 integration tests (blocklist precedence, CLI entry point, golden path policy, latency, stress, fixture validation)
+- `tests/test_detectors/test_sql_injection.py` — 16 SQL injection detector tests (7 positive, 7 negative, 2 edge cases; sync, no I/O)
 - `tests/test_cli.py` — 7 CLI tests (CliRunner for arg validation, subprocess for banner/error handling)
 - `tests/conftest.py` — Shared fixtures: `echo_server_cmd`, `proxy_process`, `proxy_with_policy`, `make_tool_call`, `compiled_policy_from_yaml`, `sample_policy`, `minimal_policy`
 - `tests/helpers/echo_mcp_server.py` — Minimal MCP server for proxy tests (no Node.js dependency)
