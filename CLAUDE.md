@@ -55,7 +55,7 @@ Agent → Parser → Detectors → Rule Engine → Decision (allow/block) → To
 - `path_traversal.py` — Traversal sequences (`../`, encoded variants), sensitive absolute paths, null byte injection — **implemented**
 - `command_injection.py` — Shell metacharacters (`;`, `&&`, `|`, backticks, `$()`) with context-aware matching — **implemented**
 - `ssrf.py` — Private/loopback/link-local/reserved IP detection in URLs and bare IPs via `ipaddress` stdlib — **implemented**
-- `secrets.py` — AWS keys, tokens, passwords in params (stub)
+- `secrets.py` — AWS keys, GitHub tokens, PEM private keys, passwords, Slack/Stripe/Bearer tokens via exact-format regex — **implemented**
 - `chain.py` — Sequential attack pattern matching (stub)
 
 ### Policy Language (YAML)
@@ -82,6 +82,7 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `tests/test_detectors/test_path_traversal.py` — 17 path traversal detector tests (8 positive, 7 negative, 2 edge cases; sync, no I/O)
 - `tests/test_detectors/test_command_injection.py` — 17 command injection detector tests (8 positive, 7 negative, 2 edge cases; sync, no I/O)
 - `tests/test_detectors/test_ssrf.py` — 17 SSRF detector tests (8 positive, 7 negative, 2 edge cases; sync, no I/O)
+- `tests/test_detectors/test_secrets.py` — 17 secrets detector tests (8 positive, 7 negative, 2 edge cases; sync, no I/O)
 - `tests/test_cli.py` — 7 CLI tests (CliRunner for arg validation, subprocess for banner/error handling)
 - `tests/conftest.py` — Shared fixtures: `echo_server_cmd`, `proxy_process`, `proxy_with_policy`, `make_tool_call`, `compiled_policy_from_yaml`, `sample_policy`, `minimal_policy`
 - `tests/helpers/echo_mcp_server.py` — Minimal MCP server for proxy tests (no Node.js dependency)
