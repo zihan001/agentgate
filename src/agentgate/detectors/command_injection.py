@@ -35,18 +35,10 @@ _KNOWN_COMMANDS = (
 )
 
 # Category 1: Shell operators followed by command-like tokens
-_SEMICOLON_CMD = re.compile(
-    rf";\s*(?:{_KNOWN_COMMANDS})\b|;\s*[./~]", re.IGNORECASE
-)
-_AND_CMD = re.compile(
-    rf"&&\s*(?:{_KNOWN_COMMANDS})\b|&&\s*[./~]", re.IGNORECASE
-)
-_OR_CMD = re.compile(
-    rf"\|\|\s*(?:{_KNOWN_COMMANDS})\b|\|\|\s*[./~]", re.IGNORECASE
-)
-_PIPE_CMD = re.compile(
-    rf"(?<!\|)\|\s*(?:{_KNOWN_COMMANDS})\b", re.IGNORECASE
-)
+_SEMICOLON_CMD = re.compile(rf";\s*(?:{_KNOWN_COMMANDS})\b|;\s*[./~]", re.IGNORECASE)
+_AND_CMD = re.compile(rf"&&\s*(?:{_KNOWN_COMMANDS})\b|&&\s*[./~]", re.IGNORECASE)
+_OR_CMD = re.compile(rf"\|\|\s*(?:{_KNOWN_COMMANDS})\b|\|\|\s*[./~]", re.IGNORECASE)
+_PIPE_CMD = re.compile(rf"(?<!\|)\|\s*(?:{_KNOWN_COMMANDS})\b", re.IGNORECASE)
 _REDIRECT = re.compile(r">{1,2}\s*[/~.]")
 
 # Category 2: Command substitution — always suspicious

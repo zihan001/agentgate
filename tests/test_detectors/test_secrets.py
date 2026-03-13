@@ -112,9 +112,7 @@ def test_base64_without_prefix():
 
 
 def test_aws_key_in_url():
-    result = detect(
-        _call({"url": "https://s3.amazonaws.com/?AWSAccessKeyId=AKIA1234567890ABCDEF"})
-    )
+    result = detect(_call({"url": "https://s3.amazonaws.com/?AWSAccessKeyId=AKIA1234567890ABCDEF"}))
     assert result.matched
     assert "AWS access key ID" in result.detail
 

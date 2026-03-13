@@ -43,7 +43,7 @@ Agent → Parser → Detectors → Rule Engine → Decision (allow/block) → To
 | `models.py` | Pydantic data contracts (ToolCall, Decision, PolicyConfig, rules) — **implemented** |
 | `parser.py` | JSON-RPC message parsing (`ParsedMessage`, `parse_message()`, `build_error_response()`) — **implemented** |
 | `policy.py` | YAML policy loader & regex compilation (`load_policy()`, `compile_regexes()`, `load_and_compile()`, `PolicyLoadError`, `CompiledPolicy`) — **implemented** |
-| `engine.py` | Top-to-bottom rule evaluation (`evaluate()` — tool_block, tool_allow, default decision) — **implemented** |
+| `engine.py` | Top-to-bottom rule evaluation (`evaluate()` — detectors, tool_block, tool_allow, default decision) — **implemented** |
 | `proxy.py` | Stdio MCP proxy — LSP-framed bidirectional relay with policy interception (`read_message`, `write_message`, `_intercepting_relay`, `StdioProxy`) — **implemented** |
 | `session.py` | Sliding-window deque of recent calls for chain detection (stub) |
 | `audit.py` | Async SQLite writer with SHA-256 hash chaining (stub) |
@@ -67,22 +67,23 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `src/agentgate/models.py` — Core Pydantic contracts (fully implemented)
 - `src/agentgate/parser.py` — JSON-RPC parser: classifies messages by kind, extracts `ToolCall` from `tools/call` requests (fully implemented)
 - `src/agentgate/policy.py` — YAML policy loader: two-phase load (parse → compile), `PolicyLoadError` exception, `CompiledPolicy` dataclass with pre-compiled regex map (fully implemented)
-- `src/agentgate/engine.py` — Rule engine: `evaluate()` checks tool_block, tool_allow, and default decision with correct precedence (fully implemented, steps 1/4/5 deferred)
+- `src/agentgate/engine.py` — Rule engine: `evaluate()` checks detectors (Step 1), tool_block, tool_allow, and default decision with correct precedence (fully implemented, steps 4/5 deferred)
 - `src/agentgate/proxy.py` — Stdio proxy with policy interception: `_intercepting_relay` parses tool calls, evaluates against policy, blocks or forwards (fully implemented)
 - `agentgate.yaml.example` — Golden-path policy demonstrating all features
 - `docs/mvp-spec.md` — Frozen MVP specification with success criteria and evaluation plan
 - `tests/test_parser.py` — 12 parser unit tests (sync, no I/O)
 - `tests/test_models.py` — 11 model validation tests
 - `tests/test_policy.py` — 10 policy loader tests (sync, tmp_path I/O only)
-- `tests/test_engine.py` — 10 rule engine tests (sync, no I/O)
+- `tests/test_engine.py` — 14 rule engine tests (10 rule precedence + 4 detector integration; sync, no I/O)
 - `tests/test_proxy.py` — 5 integration tests for the stdio proxy
-- `tests/test_proxy_policy.py` — 8 integration tests for proxy + policy engine wiring (allow, block, passthrough, error format, mixed decisions)
+- `tests/test_proxy_policy.py` — 9 integration tests for proxy + policy engine wiring (allow, block, passthrough, error format, mixed decisions, detector blocking)
 - `tests/test_integration.py` — 6 PR1 integration tests (blocklist precedence, CLI entry point, golden path policy, latency, stress, fixture validation)
 - `tests/test_detectors/test_sql_injection.py` — 16 SQL injection detector tests (7 positive, 7 negative, 2 edge cases; sync, no I/O)
 - `tests/test_detectors/test_path_traversal.py` — 17 path traversal detector tests (8 positive, 7 negative, 2 edge cases; sync, no I/O)
 - `tests/test_detectors/test_command_injection.py` — 17 command injection detector tests (8 positive, 7 negative, 2 edge cases; sync, no I/O)
 - `tests/test_detectors/test_ssrf.py` — 17 SSRF detector tests (8 positive, 7 negative, 2 edge cases; sync, no I/O)
 - `tests/test_detectors/test_secrets.py` — 17 secrets detector tests (8 positive, 7 negative, 2 edge cases; sync, no I/O)
+- `tests/test_detectors/test_registry.py` — 8 detector pipeline tests (run_all wiring, enable/disable, multi-detector; sync, no I/O)
 - `tests/test_cli.py` — 7 CLI tests (CliRunner for arg validation, subprocess for banner/error handling)
 - `tests/conftest.py` — Shared fixtures: `echo_server_cmd`, `proxy_process`, `proxy_with_policy`, `make_tool_call`, `compiled_policy_from_yaml`, `sample_policy`, `minimal_policy`
 - `tests/helpers/echo_mcp_server.py` — Minimal MCP server for proxy tests (no Node.js dependency)

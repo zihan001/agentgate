@@ -153,3 +153,56 @@ def test_no_allowlist_means_all_tools_pass_to_default():
     )
     decision = evaluate(_call("anything_else"), policy)
     assert decision.action == "allow"
+
+
+# --- Detector integration tests (Issue #26) ---
+
+
+def _call_with_args(tool_name: str = "read_file", arguments: dict | None = None) -> ToolCall:
+    return ToolCall(tool_name=tool_name, arguments=arguments or {})
+
+
+def test_detector_blocks_even_when_tool_on_allowlist():
+    """Detectors (Step 1) take precedence over tool_allow (Step 3)."""
+    policy = _make_policy(
+        policies=[
+            ToolAllowRule(name="safe-tools", type="tool_allow", tools=["read_file"]),
+        ],
+    )
+    tc = _call_with_args("read_file", {"path": "../../etc/passwd"})
+    decision = evaluate(tc, policy)
+    assert decision.action == "block"
+    assert decision.matched_detector is not None
+    assert decision.matched_rule is None
+
+
+def test_detector_blocks_with_default_allow_no_rules():
+    """Detectors fire before the default decision, even with no policy rules."""
+    policy = _make_policy(default_decision="allow")
+    tc = _call_with_args("any_tool", {"key": "AKIA1234567890ABCDEF"})
+    decision = evaluate(tc, policy)
+    assert decision.action == "block"
+    assert decision.matched_detector == "secrets_in_params"
+
+
+def test_detector_block_returns_matched_detector_not_matched_rule():
+    """A detector block populates matched_detector, not matched_rule."""
+    policy = _make_policy(default_decision="allow")
+    tc = _call_with_args("tool", {"query": "DROP TABLE users"})
+    decision = evaluate(tc, policy)
+    assert decision.action == "block"
+    assert decision.matched_detector == "sql_injection"
+    assert decision.matched_rule is None
+    assert decision.message is not None
+
+
+def test_clean_call_passes_detectors_and_allowlist():
+    """A clean tool call passes both detectors and allowlist."""
+    policy = _make_policy(
+        policies=[
+            ToolAllowRule(name="safe-tools", type="tool_allow", tools=["read_file"]),
+        ],
+    )
+    tc = _call_with_args("read_file", {"text": "hello world"})
+    decision = evaluate(tc, policy)
+    assert decision.action == "allow"
