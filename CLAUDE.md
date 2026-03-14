@@ -59,6 +59,14 @@ Agent → Parser → Detectors → Rule Engine → Decision (allow/block) → To
 - `secrets.py` — AWS keys, GitHub tokens, PEM private keys, passwords, Slack/Stripe/Bearer tokens via exact-format regex — **implemented**
 - `chain.py` — Sequential attack pattern matching: `evaluate_chain_rules()` scans session history for ordered multi-step tool-call sequences — **implemented**
 
+### Evaluation Framework (`eval/`)
+
+| Module | Role |
+|--------|------|
+| `harness.py` | Scenario runner: `Scenario`/`ScenarioStep` dataclasses, `StepResult`/`ScenarioResult`/`EvalRun` result types, `run_scenario()`, `run_all()` — drives `evaluate()` directly (no proxy), grades utility/security outcomes — **implemented** |
+| `report.py` | Metric computation and formatting (BU, ASR, FPR) — **stub** |
+| `scenarios/` | Scenario definitions (benign + adversarial) — **stub** |
+
 ### Policy Language (YAML)
 
 Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `agentgate.yaml.example` for complete syntax with all rule types demonstrated.
@@ -98,6 +106,8 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `tests/helpers/echo_mcp_server.py` — Minimal MCP server for proxy tests (no Node.js dependency)
 - `tests/helpers/mcp_client.py` — Shared test helpers (`send_message`, `read_message`, `do_initialize`)
 - `tests/helpers/proxy_with_policy.py` — Test harness for spawning proxy with a policy via env var
+- `eval/harness.py` — Evaluation harness: scenario/step dataclasses, result types, `run_scenario()` + `run_all()` runner functions; drives engine directly with fresh SessionStore per scenario, grades utility_pass/security_pass (fully implemented)
+- `tests/test_eval_harness.py` — 10 eval harness tests (benign allow, adversarial block, false negative, false positive, multi-step chain, simulated_response guard, policy override, run_all aggregation, timing, empty list; sync, no I/O except tmp_path for policy overrides)
 - `examples/demo_agent.py` — Scripted golden path demo: 5 tool calls through the engine showing detector, param_rule, and chain_rule blocking (exit 0 = pass)
 - `examples/email_mcp_server.py` — Minimal MCP server: `send_email` tool over LSP-framed JSON-RPC (stdlib only, no `mcp` SDK)
 - `examples/policies/demo.yaml` — Demo policy exercising all 4 rule types + all 5 detectors
