@@ -97,6 +97,9 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `tests/helpers/echo_mcp_server.py` — Minimal MCP server for proxy tests (no Node.js dependency)
 - `tests/helpers/mcp_client.py` — Shared test helpers (`send_message`, `read_message`, `do_initialize`)
 - `tests/helpers/proxy_with_policy.py` — Test harness for spawning proxy with a policy via env var
+- `examples/demo_agent.py` — Scripted golden path demo: 5 tool calls through the engine showing detector, param_rule, and chain_rule blocking (exit 0 = pass)
+- `examples/email_mcp_server.py` — Minimal MCP server: `send_email` tool over LSP-framed JSON-RPC (stdlib only, no `mcp` SDK)
+- `examples/policies/demo.yaml` — Demo policy exercising all 4 rule types + all 5 detectors
 - `.github/CONTRIBUTING.md` — Dev setup and PR process
 
 ## Code Style
