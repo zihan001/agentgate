@@ -229,6 +229,28 @@ def test_compile_regexes_valid():
     assert compiled.regexes["email-check:check.value"].search("user@mycompany.com")
 
 
+def test_output_matches_ignorecase():
+    """output_matches regexes are compiled with IGNORECASE for chain rules."""
+    config = PolicyConfig(
+        version="0.1",
+        policies=[
+            ChainRule(
+                name="test-rule",
+                type="chain_rule",
+                steps=[
+                    ChainStep(tool="read_file", output_matches=r"api[_-]?key"),
+                    ChainStep(tool="send_email"),
+                ],
+            ),
+        ],
+    )
+    compiled = compile_regexes(config)
+    pattern = compiled.regexes["test-rule:steps.0.output_matches"]
+    assert pattern.flags & re.IGNORECASE
+    assert pattern.search("API_KEY=secret") is not None
+    assert pattern.search("api-key: value") is not None
+
+
 def test_compile_regexes_invalid_pattern():
     config = PolicyConfig(
         version="0.1",

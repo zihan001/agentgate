@@ -1,0 +1,57 @@
+version: "0.1"
+
+settings:
+  default_decision: allow
+  log_level: info
+
+detectors:
+  sql_injection: true
+  path_traversal: true
+  command_injection: true
+  ssrf_private_ip: true
+  secrets_in_params: true
+
+policies:
+  # Only these tools are callable
+  - name: only-demo-tools
+    type: tool_allow
+    tools:
+      - read_file
+      - list_directory
+      - send_email
+
+  # Filesystem access restricted to /data/workspace/
+  - name: sandboxed-files
+    type: param_rule
+    match:
+      tool: read_file
+    check:
+      param: path
+      op: starts_with
+      value: "/data/workspace/"
+      negate: true
+    message: "File access restricted to /data/workspace/"
+
+  # Email restricted to internal addresses
+  - name: internal-email-only
+    type: param_rule
+    match:
+      tool: send_email
+    check:
+      param: to
+      op: matches
+      value: ".*@mycompany\\.com$"
+      negate: true
+    message: "Emails may only be sent to @mycompany.com addresses"
+
+  # Chain: block send_email after read_file returned sensitive content
+  - name: block-exfil-after-sensitive-read
+    type: chain_rule
+    window: 5
+    steps:
+      - tool: read_file
+        output_matches: "BEGIN.*PRIVATE KEY|password|api[_-]?key|secret"
+      - tool: send_email
+        param_matches:
+          to: "^(?!.*@mycompany\\.com$).*$"
+    message: "Blocked: sending email after reading sensitive data"

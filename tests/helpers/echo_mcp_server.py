@@ -85,11 +85,13 @@ def handle(msg: dict) -> dict | None:
 
     if method == "tools/call":
         args = msg.get("params", {}).get("arguments", {})
+        mock = args.get("_mock_response")
+        response_text = mock if mock is not None else json.dumps(args)
         return {
             "jsonrpc": "2.0",
             "id": msg_id,
             "result": {
-                "content": [{"type": "text", "text": json.dumps(args)}],
+                "content": [{"type": "text", "text": response_text}],
                 "isError": False,
             },
         }

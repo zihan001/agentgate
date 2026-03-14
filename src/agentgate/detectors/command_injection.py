@@ -26,8 +26,8 @@ _REDIRECT = re.compile(r">{1,2}\s*[/~.]")
 _BACKTICK = re.compile(r"`[^`]+`")
 _DOLLAR_PAREN = re.compile(r"\$\([^)]+\)")
 
-# Category 3: Embedded newlines
-_NEWLINE = re.compile(r"\n")
+# Category 3: Embedded newline followed by a suspicious command
+_NEWLINE_CMD = re.compile(rf"\n\s*(?:{_KNOWN_COMMANDS})\b|\n\s*[./~]", re.IGNORECASE)
 
 _PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (_SEMICOLON_CMD, "shell command after semicolon"),
@@ -37,7 +37,7 @@ _PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (_REDIRECT, "output redirection to file"),
     (_BACKTICK, "backtick command substitution"),
     (_DOLLAR_PAREN, "$() command substitution"),
-    (_NEWLINE, "embedded newline"),
+    (_NEWLINE_CMD, "shell command after newline"),
 ]
 
 

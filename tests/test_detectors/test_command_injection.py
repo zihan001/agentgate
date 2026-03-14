@@ -65,7 +65,7 @@ def test_embedded_newline():
     result = detect(_call({"cmd": "ls\nrm -rf /"}))
     assert result.matched is True
     assert result.detector_name == "command_injection"
-    assert "embedded newline" in result.detail
+    assert "shell command after newline" in result.detail
 
 
 # ── Negative cases (7) — must NOT detect ────────────────────────────────
@@ -121,6 +121,13 @@ def test_nested_args():
     assert result.matched is True
     assert result.detector_name == "command_injection"
     assert "config.script" in result.detail
+
+
+def test_benign_multiline_text():
+    """Multi-line prose should not trigger the newline pattern."""
+    result = detect(_call({"content": "Hello world\nThis is a normal paragraph\nWith multiple lines"}))
+    assert result.matched is False
+    assert result.detector_name == "command_injection"
 
 
 def test_empty_args():

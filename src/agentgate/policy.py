@@ -81,7 +81,7 @@ def compile_regexes(config: PolicyConfig) -> CompiledPolicy:
                 if step.output_matches is not None:
                     key = f"{rule.name}:steps.{i}.output_matches"
                     try:
-                        regexes[key] = re.compile(step.output_matches)
+                        regexes[key] = re.compile(step.output_matches, re.IGNORECASE)
                     except re.error as e:
                         raise PolicyLoadError(
                             f"Rule '{rule.name}' (chain_rule): "
