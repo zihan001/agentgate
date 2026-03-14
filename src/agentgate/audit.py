@@ -58,6 +58,29 @@ def _compute_hash(
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def verify_chain(db_path: str | Path) -> tuple[bool, int]:
+    """Verify hash chain integrity of an audit database. Read-only.
+
+    Returns (is_valid, row_count).
+    """
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    rows = conn.execute(
+        "SELECT prev_hash, timestamp, tool_name, arguments, decision, entry_hash "
+        "FROM audit_log ORDER BY id ASC"
+    ).fetchall()
+    conn.close()
+
+    expected_prev = "genesis"
+    for prev_hash, ts, tool, args, decision, entry_hash in rows:
+        if prev_hash != expected_prev:
+            return (False, len(rows))
+        recomputed = _compute_hash(prev_hash, ts, tool, args, decision)
+        if recomputed != entry_hash:
+            return (False, len(rows))
+        expected_prev = entry_hash
+    return (True, len(rows))
+
+
 class AuditWriter:
     """Append-only SQLite audit writer with SHA-256 hash chaining.
 
@@ -75,9 +98,7 @@ class AuditWriter:
         conn = sqlite3.connect(str(self.db_path))
         conn.execute(_CREATE_TABLE_SQL)
         conn.commit()
-        row = conn.execute(
-            "SELECT entry_hash FROM audit_log ORDER BY id DESC LIMIT 1"
-        ).fetchone()
+        row = conn.execute("SELECT entry_hash FROM audit_log ORDER BY id DESC LIMIT 1").fetchone()
         self._prev_hash = row[0] if row else "genesis"
         conn.close()
 
@@ -100,9 +121,7 @@ class AuditWriter:
         Timestamp is captured at call time (not dequeue time).
         """
         timestamp = datetime.now(timezone.utc).isoformat()
-        arguments_json = json.dumps(
-            arguments, separators=(",", ":"), sort_keys=True, default=str
-        )
+        arguments_json = json.dumps(arguments, separators=(",", ":"), sort_keys=True, default=str)
         entry = _QueueEntry(
             timestamp=timestamp,
             session_id=session_id,
@@ -130,26 +149,9 @@ class AuditWriter:
     def verify_chain(self) -> tuple[bool, int]:
         """Walk the full audit log and verify hash chain integrity.
 
-        Returns (is_valid, row_count). Used by tests and `agentgate logs --verify`.
-        This is a read operation — runs on the caller's thread, opens its own
-        read-only SQLite connection.
+        Returns (is_valid, row_count). Delegates to module-level verify_chain().
         """
-        conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
-        rows = conn.execute(
-            "SELECT prev_hash, timestamp, tool_name, arguments, decision, entry_hash "
-            "FROM audit_log ORDER BY id ASC"
-        ).fetchall()
-        conn.close()
-
-        expected_prev = "genesis"
-        for prev_hash, ts, tool, args, decision, entry_hash in rows:
-            if prev_hash != expected_prev:
-                return (False, len(rows))
-            recomputed = _compute_hash(prev_hash, ts, tool, args, decision)
-            if recomputed != entry_hash:
-                return (False, len(rows))
-            expected_prev = entry_hash
-        return (True, len(rows))
+        return verify_chain(self.db_path)
 
     def _writer_loop(self) -> None:
         """Background thread loop: drain queue, hash, write to SQLite."""
