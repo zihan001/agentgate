@@ -6,8 +6,10 @@ import re
 from typing import Any
 
 from agentgate.detectors import run_all as run_detectors
-from agentgate.models import Decision, ParamRule, ToolAllowRule, ToolBlockRule, ToolCall
+from agentgate.detectors.chain import evaluate_chain_rules
+from agentgate.models import Decision, ParamCheck, ParamRule, ToolAllowRule, ToolBlockRule, ToolCall
 from agentgate.policy import CompiledPolicy
+from agentgate.session import SessionStore
 
 _MISSING = object()
 
@@ -28,7 +30,7 @@ def _resolve_param(arguments: dict[str, Any], param_path: str) -> Any:
 
 def _eval_param_check(
     param_value: Any,
-    check: "ParamRule.check.__class__",
+    check: ParamCheck,
     compiled_regexes: dict[str, re.Pattern],
     rule_name: str,
 ) -> bool:
@@ -56,7 +58,7 @@ def _eval_param_check(
     return condition_met ^ check.negate
 
 
-def evaluate(tool_call: ToolCall, policy: CompiledPolicy) -> Decision:
+def evaluate(tool_call: ToolCall, policy: CompiledPolicy, session: SessionStore | None = None) -> Decision:
     """Evaluate a tool call against the compiled policy and return a decision.
 
     Decision stack (evaluated top-to-bottom, first match wins):
@@ -124,8 +126,11 @@ def evaluate(tool_call: ToolCall, policy: CompiledPolicy) -> Decision:
                 message=rule.message or f"Blocked by param_rule '{rule.name}'",
             )
 
-    # --- Step 5: chain_rule (Issue #11) ---
-    # Will check session history here
+    # --- Step 5: chain_rule ---
+    if session is not None:
+        chain_decision = evaluate_chain_rules(tool_call, policy, session)
+        if chain_decision is not None:
+            return chain_decision
 
     # --- Step 6: default decision ---
     return Decision(action=policy.config.settings.default_decision)

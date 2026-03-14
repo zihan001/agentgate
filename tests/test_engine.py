@@ -1,7 +1,11 @@
 """Tests for rule evaluation engine logic."""
 
+import re
+
 from agentgate.engine import evaluate
 from agentgate.models import (
+    ChainRule,
+    ChainStep,
     PolicyConfig,
     Settings,
     ToolAllowRule,
@@ -9,6 +13,7 @@ from agentgate.models import (
     ToolCall,
 )
 from agentgate.policy import CompiledPolicy
+from agentgate.session import SessionStore
 
 
 def _make_policy(
@@ -206,3 +211,72 @@ def test_clean_call_passes_detectors_and_allowlist():
     tc = _call_with_args("read_file", {"text": "hello world"})
     decision = evaluate(tc, policy)
     assert decision.action == "allow"
+
+
+# --- Chain rule engine integration tests (Issue #11) ---
+
+
+def _make_chain_policy() -> tuple[CompiledPolicy, ChainRule]:
+    """Build a policy with a chain rule for engine tests."""
+    rule = ChainRule(
+        name="block-exfil",
+        type="chain_rule",
+        window=5,
+        steps=[
+            ChainStep(tool="read_file", output_matches=r"SENSITIVE"),
+            ChainStep(tool="send_email"),
+        ],
+        message="Blocked exfil",
+    )
+    config = PolicyConfig(
+        version="0.1",
+        settings=Settings(default_decision="allow"),
+        policies=[rule],
+    )
+    regexes = {
+        f"{rule.name}:steps.0.output_matches": re.compile(r"SENSITIVE", re.IGNORECASE),
+    }
+    return CompiledPolicy(config=config, regexes=regexes), rule
+
+
+def test_engine_chain_rule_blocks():
+    """evaluate() with session containing matching history blocks via chain rule."""
+    policy, _ = _make_chain_policy()
+    session = SessionStore()
+    entry = session.record_request("read_file", {"path": "/x"})
+    session.record_response(entry, "data with SENSITIVE content")
+
+    decision = evaluate(
+        ToolCall(tool_name="send_email", arguments={}), policy, session
+    )
+    assert decision.action == "block"
+    assert decision.matched_rule == "block-exfil"
+
+
+def test_engine_chain_rule_skipped_no_session():
+    """evaluate() with session=None skips chain rules and uses default decision."""
+    policy, _ = _make_chain_policy()
+
+    decision = evaluate(
+        ToolCall(tool_name="send_email", arguments={}), policy
+    )
+    assert decision.action == "allow"
+    assert decision.matched_rule is None
+
+
+def test_engine_detector_beats_chain():
+    """Detector (step 1) fires before chain rule (step 5)."""
+    policy, _ = _make_chain_policy()
+    session = SessionStore()
+    entry = session.record_request("read_file", {"path": "/x"})
+    session.record_response(entry, "SENSITIVE data")
+
+    # Tool call with path traversal in arguments — triggers detector
+    decision = evaluate(
+        ToolCall(tool_name="send_email", arguments={"path": "../../etc/passwd"}),
+        policy,
+        session,
+    )
+    assert decision.action == "block"
+    assert decision.matched_detector is not None
+    assert decision.matched_rule is None

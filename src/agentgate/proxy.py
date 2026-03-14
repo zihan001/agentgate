@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import sys
+from typing import Any
 
 from agentgate.engine import evaluate
 from agentgate.parser import build_error_response, parse_message
@@ -13,6 +14,31 @@ from agentgate.policy import CompiledPolicy
 from agentgate.session import SessionEntry, SessionStore
 
 log = logging.getLogger("agentgate.proxy")
+
+_MAX_RESPONSE_TEXT = 10_000
+
+
+def _extract_response_text(result: Any) -> str | None:
+    """Extract human-readable text from an MCP tools/call result.
+
+    Concatenates all text content items. Falls back to json.dumps().
+    Truncates to _MAX_RESPONSE_TEXT characters for memory safety.
+    """
+    if isinstance(result, dict):
+        content = result.get("content")
+        if isinstance(content, list):
+            texts = []
+            for item in content:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    t = item.get("text")
+                    if isinstance(t, str):
+                        texts.append(t)
+            if texts:
+                return "\n".join(texts)[:_MAX_RESPONSE_TEXT]
+        return json.dumps(result)[:_MAX_RESPONSE_TEXT]
+    if isinstance(result, str):
+        return result[:_MAX_RESPONSE_TEXT]
+    return json.dumps(result)[:_MAX_RESPONSE_TEXT]
 
 
 async def read_message(reader: asyncio.StreamReader) -> bytes | None:
@@ -85,7 +111,7 @@ async def _intercepting_relay(
         parsed = parse_message(payload)
 
         if parsed.kind == "tool_call" and parsed.tool_call is not None:
-            decision = evaluate(parsed.tool_call, policy)
+            decision = evaluate(parsed.tool_call, policy, session)
             log.debug(
                 "%s: %s -> %s (rule=%s)",
                 label,
@@ -139,7 +165,9 @@ async def _response_intercepting_relay(
                 entry = pending_responses.pop(req_id)
                 result = parsed.get("result")
                 if result is not None:
-                    session.record_response(entry, json.dumps(result))
+                    response_text = _extract_response_text(result)
+                    if response_text is not None:
+                        session.record_response(entry, response_text)
         except Exception:
             log.debug("%s: failed to parse response for session tracking, skipping", label)
 
