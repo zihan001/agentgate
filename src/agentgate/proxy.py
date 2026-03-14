@@ -6,8 +6,11 @@ import asyncio
 import json
 import logging
 import sys
+import uuid
+from pathlib import Path
 from typing import Any
 
+from agentgate.audit import AuditWriter
 from agentgate.engine import evaluate
 from agentgate.parser import build_error_response, parse_message
 from agentgate.policy import CompiledPolicy
@@ -100,6 +103,8 @@ async def _intercepting_relay(
     label: str,
     session: SessionStore,
     pending_responses: dict[str | int, SessionEntry],
+    audit_writer: AuditWriter | None = None,
+    session_id: str = "",
 ) -> None:
     """Relay with policy interception: parse tool calls, evaluate, block or forward."""
     while True:
@@ -112,6 +117,16 @@ async def _intercepting_relay(
 
         if parsed.kind == "tool_call" and parsed.tool_call is not None:
             decision = evaluate(parsed.tool_call, policy, session)
+            if audit_writer is not None:
+                audit_writer.log(
+                    session_id=session_id,
+                    tool_name=parsed.tool_call.tool_name,
+                    arguments=parsed.tool_call.arguments,
+                    decision=decision.action,
+                    matched_rule=decision.matched_rule,
+                    matched_detector=decision.matched_detector,
+                    message=decision.message,
+                )
             log.debug(
                 "%s: %s -> %s (rule=%s)",
                 label,
@@ -193,14 +208,23 @@ class StdioProxy:
     stdin/stdout.
     """
 
-    def __init__(self, command: list[str], policy: CompiledPolicy | None = None) -> None:
+    def __init__(
+        self,
+        command: list[str],
+        policy: CompiledPolicy | None = None,
+        audit_db: str | Path | None = None,
+    ) -> None:
         self.command = command
         self.policy = policy
         self.session = SessionStore()
         self._pending_responses: dict[str | int, SessionEntry] = {}
+        self.audit_writer: AuditWriter | None = (
+            AuditWriter(audit_db) if audit_db is not None else None
+        )
 
     async def run(self) -> int:
         """Run the proxy. Returns the child process exit code."""
+        session_id = str(uuid.uuid4())
         loop = asyncio.get_running_loop()
 
         # Wrap agent-side stdin as async reader
@@ -236,6 +260,8 @@ class StdioProxy:
                     "agent->server",
                     self.session,
                     self._pending_responses,
+                    audit_writer=self.audit_writer,
+                    session_id=session_id,
                 )
             )
             server_to_agent = asyncio.create_task(
@@ -306,6 +332,9 @@ class StdioProxy:
                 log.warning("Child did not exit after SIGTERM, sending SIGKILL")
                 child.kill()
                 await child.wait()
+
+        if self.audit_writer is not None:
+            self.audit_writer.close()
 
         return child.returncode or 0
 

@@ -46,8 +46,8 @@ Agent → Parser → Detectors → Rule Engine → Decision (allow/block) → To
 | `engine.py` | Top-to-bottom rule evaluation (`evaluate()` — detectors, tool_block, tool_allow, param_rule, chain_rule, default decision) — **implemented** |
 | `proxy.py` | Stdio MCP proxy — LSP-framed bidirectional relay with policy interception (`read_message`, `write_message`, `_intercepting_relay`, `StdioProxy`) — **implemented** |
 | `session.py` | Sliding-window deque of recent calls for chain detection (`SessionEntry`, `SessionStore`) — **implemented** |
-| `audit.py` | Async SQLite writer with SHA-256 hash chaining (stub) |
-| `cli.py` | Click CLI: `init` (stub), `start` (hardened — env var override, `--verbose`, startup banner, error handling), `logs` (stub) — **implemented** |
+| `audit.py` | Background-thread SQLite writer with SHA-256 hash chaining (`AuditWriter`, `_compute_hash`, `verify_chain`) — **implemented** |
+| `cli.py` | Click CLI: `init` (stub), `start` (hardened — env var override, `--verbose`, `--audit-db`, startup banner, error handling), `logs` (stub) — **implemented** |
 
 ### Detectors (`src/agentgate/detectors/`)
 
@@ -69,7 +69,7 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `src/agentgate/parser.py` — JSON-RPC parser: classifies messages by kind, extracts `ToolCall` from `tools/call` requests (fully implemented)
 - `src/agentgate/policy.py` — YAML policy loader: two-phase load (parse → compile), `PolicyLoadError` exception, `CompiledPolicy` dataclass with pre-compiled regex map (fully implemented)
 - `src/agentgate/engine.py` — Rule engine: `evaluate()` checks detectors (Step 1), tool_block, tool_allow, param_rule (6 operators, negate, dot-notation), chain_rule (session history matching), and default decision with correct precedence (fully implemented)
-- `src/agentgate/proxy.py` — Stdio proxy with policy interception: `_intercepting_relay` parses tool calls, evaluates against policy, blocks or forwards (fully implemented)
+- `src/agentgate/proxy.py` — Stdio proxy with policy interception: `_intercepting_relay` parses tool calls, evaluates against policy, blocks or forwards, logs decisions to audit writer (fully implemented)
 - `agentgate.yaml.example` — Golden-path policy demonstrating all features
 - `docs/mvp-spec.md` — Frozen MVP specification with success criteria and evaluation plan
 - `tests/test_parser.py` — 12 parser unit tests (sync, no I/O)
@@ -87,6 +87,7 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `tests/test_detectors/test_secrets.py` — 19 secrets detector tests (8 positive, 7 negative, 2 edge cases + 2 additional coverage; sync, no I/O)
 - `tests/test_detectors/test_registry.py` — 8 detector pipeline tests (run_all wiring, enable/disable, multi-detector; sync, no I/O)
 - `tests/test_detectors/test_chain.py` — 15 chain detection tests (6 positive, 6 negative, 3 edge cases; sync, no I/O)
+- `tests/test_audit.py` — 15 audit writer tests (table creation, field correctness, genesis hash, chain linking, determinism, verification, tampering, flush, idempotent close, resume, timestamps, key sorting, concurrency, latency; sync, tmp_path I/O)
 - `tests/test_chain_integration.py` — 4 chain detection integration tests (AT-3 exfil blocking, benign sequence, param mismatch, read-only)
 - `tests/test_session.py` — 12 session store unit tests (empty, record, ordering, eviction, clear, timestamps; sync, no I/O)
 - `tests/test_cli.py` — 7 CLI tests (CliRunner for arg validation, subprocess for banner/error handling)

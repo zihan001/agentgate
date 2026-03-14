@@ -45,8 +45,16 @@ def init() -> None:
     default=False,
     help="Enable debug logging.",
 )
+@click.option(
+    "--audit-db",
+    default="agentgate_audit.db",
+    type=click.Path(),
+    help="Path to the audit SQLite database. Default: agentgate_audit.db.",
+)
 @click.argument("server_command", nargs=-1, required=True)
-def start(policy: str | None, verbose: bool, server_command: tuple[str, ...]) -> None:
+def start(
+    policy: str | None, verbose: bool, audit_db: str, server_command: tuple[str, ...]
+) -> None:
     """Start the AgentGate proxy wrapping an MCP server.
 
     Usage: agentgate start [--policy FILE] [--verbose] -- <command> [args...]
@@ -93,7 +101,11 @@ def start(policy: str | None, verbose: bool, server_command: tuple[str, ...]) ->
     )
 
     # --- Run proxy ---
-    proxy = StdioProxy(list(server_command), policy=compiled_policy)
+    proxy = StdioProxy(
+        list(server_command),
+        policy=compiled_policy,
+        audit_db=audit_db if compiled_policy else None,
+    )
     try:
         exit_code = asyncio.run(proxy.run())
     except KeyboardInterrupt:
