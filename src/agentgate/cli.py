@@ -28,7 +28,24 @@ def main() -> None:
 @main.command()
 def init() -> None:
     """Generate a starter agentgate.yaml policy file."""
-    click.echo("Not yet implemented. Coming in PR1.")
+    import shutil
+    from pathlib import Path
+
+    dest = Path("agentgate.yaml")
+    if dest.exists():
+        click.echo(
+            f"Error: {dest} already exists. Remove it first to regenerate.",
+            err=True,
+        )
+        raise SystemExit(1)
+
+    source = Path(__file__).parent / "agentgate.yaml.example"
+    if not source.exists():
+        click.echo("Error: Starter policy template not found in package.", err=True)
+        raise SystemExit(1)
+
+    shutil.copy2(source, dest)
+    click.echo(f"Created {dest} — edit this file to define your policy.")
 
 
 @main.command()

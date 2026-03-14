@@ -47,7 +47,7 @@ Agent → Parser → Detectors → Rule Engine → Decision (allow/block) → To
 | `proxy.py` | Stdio MCP proxy — LSP-framed bidirectional relay with policy interception (`read_message`, `write_message`, `_intercepting_relay`, `StdioProxy`) — **implemented** |
 | `session.py` | Sliding-window deque of recent calls for chain detection (`SessionEntry`, `SessionStore`) — **implemented** |
 | `audit.py` | Background-thread SQLite writer with SHA-256 hash chaining (`AuditWriter`, `_compute_hash`, `verify_chain`) — **implemented** |
-| `cli.py` | Click CLI: `init` (stub), `start` (hardened — env var override, `--verbose`, `--audit-db`, startup banner, error handling), `logs` (read-only SQLite query, JSON Lines output, `--tail`, `--session`, `--decision`, `--db`, `--verify` hash chain) — **implemented** |
+| `cli.py` | Click CLI: `init` (copies starter policy to cwd), `start` (hardened — env var override, `--verbose`, `--audit-db`, startup banner, error handling), `logs` (read-only SQLite query, JSON Lines output, `--tail`, `--session`, `--decision`, `--db`, `--verify` hash chain) — **implemented** |
 
 ### Detectors (`src/agentgate/detectors/`)
 
@@ -91,6 +91,7 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `tests/test_chain_integration.py` — 4 chain detection integration tests (AT-3 exfil blocking, benign sequence, param mismatch, read-only)
 - `tests/test_session.py` — 12 session store unit tests (empty, record, ordering, eviction, clear, timestamps; sync, no I/O)
 - `tests/test_cli.py` — 7 CLI tests (CliRunner for arg validation, subprocess for banner/error handling)
+- `tests/test_cli_init.py` — 3 CLI init tests (happy path, overwrite refusal, valid policy; CliRunner, tmp_path)
 - `tests/test_cli_logs.py` — 13 CLI logs tests (query filters, tail, combined filters, JSON Lines output, arguments parsing, null fields, verify intact/broken, db option, error cases; CliRunner, tmp_path I/O)
 - `tests/conftest.py` — Shared fixtures: `echo_server_cmd`, `proxy_process`, `proxy_with_policy`, `make_tool_call`, `compiled_policy_from_yaml`, `sample_policy`, `minimal_policy`
 - `tests/helpers/echo_mcp_server.py` — Minimal MCP server for proxy tests (no Node.js dependency)
