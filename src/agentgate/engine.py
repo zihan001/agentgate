@@ -2,9 +2,58 @@
 
 from __future__ import annotations
 
+import re
+from typing import Any
+
 from agentgate.detectors import run_all as run_detectors
-from agentgate.models import Decision, ToolAllowRule, ToolBlockRule, ToolCall
+from agentgate.models import Decision, ParamRule, ToolAllowRule, ToolBlockRule, ToolCall
 from agentgate.policy import CompiledPolicy
+
+_MISSING = object()
+
+
+def _resolve_param(arguments: dict[str, Any], param_path: str) -> Any:
+    """Resolve a dotted param path against the tool call arguments dict.
+
+    Returns the leaf value, or _MISSING if any key is absent or an
+    intermediate value is not a dict.
+    """
+    current: Any = arguments
+    for key in param_path.split("."):
+        if not isinstance(current, dict) or key not in current:
+            return _MISSING
+        current = current[key]
+    return current
+
+
+def _eval_param_check(
+    param_value: Any,
+    check: "ParamRule.check.__class__",
+    compiled_regexes: dict[str, re.Pattern],
+    rule_name: str,
+) -> bool:
+    """Return True if the param check means the call should be blocked."""
+    val = str(param_value)
+    op = check.op
+
+    if op == "equals":
+        condition_met = val == check.value
+    elif op == "starts_with":
+        condition_met = val.startswith(check.value)
+    elif op == "ends_with":
+        condition_met = val.endswith(check.value)
+    elif op == "contains":
+        condition_met = check.value in val
+    elif op == "matches":
+        regex_key = f"{rule_name}:check.value"
+        pattern = compiled_regexes.get(regex_key)
+        condition_met = pattern.search(val) is not None if pattern else False
+    elif op == "in":
+        condition_met = val in check.value
+    else:
+        condition_met = False
+
+    return condition_met ^ check.negate
 
 
 def evaluate(tool_call: ToolCall, policy: CompiledPolicy) -> Decision:
@@ -58,8 +107,22 @@ def evaluate(tool_call: ToolCall, policy: CompiledPolicy) -> Decision:
                 message=f"Tool '{tool_call.tool_name}' is not on the allowlist",
             )
 
-    # --- Step 4: param_rule (Issue #8) ---
-    # Will iterate param_rules top-to-bottom here
+    # --- Step 4: param_rule ---
+    param_rules = [r for r in rules if isinstance(r, ParamRule)]
+    for rule in param_rules:
+        if rule.match.tool != "*" and rule.match.tool != tool_call.tool_name:
+            continue
+
+        value = _resolve_param(tool_call.arguments, rule.check.param)
+        if value is _MISSING:
+            continue
+
+        if _eval_param_check(value, rule.check, policy.regexes, rule.name):
+            return Decision(
+                action="block",
+                matched_rule=rule.name,
+                message=rule.message or f"Blocked by param_rule '{rule.name}'",
+            )
 
     # --- Step 5: chain_rule (Issue #11) ---
     # Will check session history here
