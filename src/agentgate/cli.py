@@ -182,6 +182,7 @@ def logs(
         raise SystemExit(1)
 
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
     tables = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='audit_log'"
     ).fetchall()
@@ -234,7 +235,6 @@ def logs(
     else:
         sql = f"SELECT {columns} FROM audit_log {where} ORDER BY id ASC"
 
-    conn.row_factory = sqlite3.Row
     rows = conn.execute(sql, params).fetchall()
     conn.close()
 

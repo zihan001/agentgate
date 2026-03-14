@@ -120,6 +120,9 @@ class AuditWriter:
         Arguments dict is serialized to JSON string internally.
         Timestamp is captured at call time (not dequeue time).
         """
+        if self._closed:
+            log.warning("AuditWriter.log() called after close(), entry dropped")
+            return
         timestamp = datetime.now(timezone.utc).isoformat()
         arguments_json = json.dumps(arguments, separators=(",", ":"), sort_keys=True, default=str)
         entry = _QueueEntry(

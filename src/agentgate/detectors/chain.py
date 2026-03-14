@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from agentgate.models import ChainRule, Decision, ToolCall
+from agentgate.models import ChainRule, ChainStep, Decision, ToolCall
 from agentgate.policy import CompiledPolicy
 from agentgate.session import SessionStore
 
@@ -10,7 +10,7 @@ from agentgate.session import SessionStore
 def _match_step_against_entry(
     rule_name: str,
     step_index: int,
-    step: "ChainRule.steps",
+    step: ChainStep,
     entry_tool_name: str,
     entry_arguments: dict,
     entry_response_text: str | None,
