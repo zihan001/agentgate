@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -26,7 +27,7 @@ def echo_server_cmd() -> list[str]:
 
 
 @pytest.fixture()
-def proxy_process(echo_server_cmd: list[str]) -> subprocess.Popen:
+def proxy_process(echo_server_cmd: list[str]) -> Iterator[subprocess.Popen]:
     """Spawn the proxy wrapping the echo MCP server. Tears down on exit."""
     cmd = [sys.executable, "-m", "agentgate.proxy"] + echo_server_cmd
     proc = subprocess.Popen(
@@ -53,7 +54,7 @@ def proxy_process(echo_server_cmd: list[str]) -> subprocess.Popen:
 
 
 @pytest.fixture()
-def proxy_with_policy(tmp_path, echo_server_cmd):
+def proxy_with_policy(tmp_path, echo_server_cmd) -> Iterator[Callable[[str], subprocess.Popen]]:
     """Factory: spawn a proxy with a given policy YAML string. Returns subprocess.Popen."""
     procs = []
 
@@ -75,6 +76,50 @@ def proxy_with_policy(tmp_path, echo_server_cmd):
         )
         procs.append(proc)
         return proc
+
+    yield _spawn
+
+    for proc in procs:
+        if proc.poll() is None:
+            proc.stdin.close()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+
+
+@pytest.fixture()
+def proxy_with_policy_and_audit(
+    tmp_path, echo_server_cmd
+) -> Iterator[Callable[[str], tuple[subprocess.Popen, Path]]]:
+    """Factory: spawn a proxy with policy AND audit DB. Returns (proc, audit_db_path)."""
+    procs = []
+
+    def _spawn(yaml_content: str) -> tuple[subprocess.Popen, Path]:
+        policy_path = tmp_path / "agentgate.yaml"
+        policy_path.write_text(yaml_content, encoding="utf-8")
+        audit_db = tmp_path / "acceptance_audit.db"
+
+        env = os.environ.copy()
+        env["AGENTGATE_TEST_POLICY"] = str(policy_path)
+        env["AGENTGATE_TEST_AUDIT_DB"] = str(audit_db)
+
+        cmd = [sys.executable, PROXY_WITH_POLICY_PATH] + echo_server_cmd
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+            cwd=str(Path(__file__).parent.parent),
+        )
+        procs.append(proc)
+        return proc, audit_db
 
     yield _spawn
 

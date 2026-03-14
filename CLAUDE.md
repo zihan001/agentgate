@@ -88,12 +88,13 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `tests/test_detectors/test_registry.py` — 8 detector pipeline tests (run_all wiring, enable/disable, multi-detector; sync, no I/O)
 - `tests/test_detectors/test_chain.py` — 15 chain detection tests (6 positive, 6 negative, 3 edge cases; sync, no I/O)
 - `tests/test_audit.py` — 15 audit writer tests (table creation, field correctness, genesis hash, chain linking, determinism, verification, tampering, flush, idempotent close, resume, timestamps, key sorting, concurrency, latency; sync, tmp_path I/O)
+- `tests/test_acceptance.py` — 6 acceptance tests AT-1 through AT-5 (path traversal block + audit, credential exfil block, chain detection, benign pass-through, SSRF block; end-to-end through live proxy)
 - `tests/test_chain_integration.py` — 4 chain detection integration tests (AT-3 exfil blocking, benign sequence, param mismatch, read-only)
 - `tests/test_session.py` — 12 session store unit tests (empty, record, ordering, eviction, clear, timestamps; sync, no I/O)
 - `tests/test_cli.py` — 7 CLI tests (CliRunner for arg validation, subprocess for banner/error handling)
 - `tests/test_cli_init.py` — 3 CLI init tests (happy path, overwrite refusal, valid policy; CliRunner, tmp_path)
 - `tests/test_cli_logs.py` — 13 CLI logs tests (query filters, tail, combined filters, JSON Lines output, arguments parsing, null fields, verify intact/broken, db option, error cases; CliRunner, tmp_path I/O)
-- `tests/conftest.py` — Shared fixtures: `echo_server_cmd`, `proxy_process`, `proxy_with_policy`, `make_tool_call`, `compiled_policy_from_yaml`, `sample_policy`, `minimal_policy`
+- `tests/conftest.py` — Shared fixtures: `echo_server_cmd`, `proxy_process`, `proxy_with_policy`, `proxy_with_policy_and_audit`, `make_tool_call`, `compiled_policy_from_yaml`, `sample_policy`, `minimal_policy`
 - `tests/helpers/echo_mcp_server.py` — Minimal MCP server for proxy tests (no Node.js dependency)
 - `tests/helpers/mcp_client.py` — Shared test helpers (`send_message`, `read_message`, `do_initialize`)
 - `tests/helpers/proxy_with_policy.py` — Test harness for spawning proxy with a policy via env var
