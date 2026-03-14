@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import sys
 
 from agentgate.engine import evaluate
 from agentgate.parser import build_error_response, parse_message
 from agentgate.policy import CompiledPolicy
+from agentgate.session import SessionEntry, SessionStore
 
 log = logging.getLogger("agentgate.proxy")
 
@@ -70,6 +72,8 @@ async def _intercepting_relay(
     agent_writer: asyncio.StreamWriter | asyncio.WriteTransport,
     policy: CompiledPolicy,
     label: str,
+    session: SessionStore,
+    pending_responses: dict[str | int, SessionEntry],
 ) -> None:
     """Relay with policy interception: parse tool calls, evaluate, block or forward."""
     while True:
@@ -101,9 +105,46 @@ async def _intercepting_relay(
                 await write_message(agent_writer, error_payload)
                 continue
 
+            # Record allowed tool call in session store
+            entry = session.record_request(
+                parsed.tool_call.tool_name, parsed.tool_call.arguments
+            )
+            if parsed.request_id is not None:
+                pending_responses[parsed.request_id] = entry
+
         # Allow: forward original bytes (zero re-serialization)
         log.debug("%s: forwarding %d bytes", label, len(payload))
         await write_message(server_writer, payload)
+
+
+async def _response_intercepting_relay(
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter | asyncio.WriteTransport,
+    label: str,
+    session: SessionStore,
+    pending_responses: dict[str | int, SessionEntry],
+) -> None:
+    """Relay server→agent with response capture for session tracking."""
+    while True:
+        msg = await read_message(reader)
+        if msg is None:
+            log.debug("%s: EOF", label)
+            break
+
+        # Best-effort response capture — never break the relay
+        try:
+            parsed = json.loads(msg)
+            req_id = parsed.get("id")
+            if req_id is not None and req_id in pending_responses:
+                entry = pending_responses.pop(req_id)
+                result = parsed.get("result")
+                if result is not None:
+                    session.record_response(entry, json.dumps(result))
+        except Exception:
+            log.debug("%s: failed to parse response for session tracking, skipping", label)
+
+        # Always forward original bytes unchanged
+        await write_message(writer, msg)
 
 
 async def _pipe_stderr(child_stderr: asyncio.StreamReader) -> None:
@@ -127,6 +168,8 @@ class StdioProxy:
     def __init__(self, command: list[str], policy: CompiledPolicy | None = None) -> None:
         self.command = command
         self.policy = policy
+        self.session = SessionStore()
+        self._pending_responses: dict[str | int, SessionEntry] = {}
 
     async def run(self) -> int:
         """Run the proxy. Returns the child process exit code."""
@@ -158,16 +201,31 @@ class StdioProxy:
         if self.policy is not None:
             agent_to_server = asyncio.create_task(
                 _intercepting_relay(
-                    agent_reader, child.stdin, agent_write_transport, self.policy, "agent->server"
+                    agent_reader,
+                    child.stdin,
+                    agent_write_transport,
+                    self.policy,
+                    "agent->server",
+                    self.session,
+                    self._pending_responses,
+                )
+            )
+            server_to_agent = asyncio.create_task(
+                _response_intercepting_relay(
+                    child.stdout,
+                    agent_write_transport,
+                    "server->agent",
+                    self.session,
+                    self._pending_responses,
                 )
             )
         else:
             agent_to_server = asyncio.create_task(
                 _relay(agent_reader, child.stdin, "agent->server")
             )
-        server_to_agent = asyncio.create_task(
-            _relay(child.stdout, agent_write_transport, "server->agent")
-        )
+            server_to_agent = asyncio.create_task(
+                _relay(child.stdout, agent_write_transport, "server->agent")
+            )
         stderr_task = asyncio.create_task(_pipe_stderr(child.stderr))
 
         # Wait for either relay to finish

@@ -45,7 +45,7 @@ Agent → Parser → Detectors → Rule Engine → Decision (allow/block) → To
 | `policy.py` | YAML policy loader & regex compilation (`load_policy()`, `compile_regexes()`, `load_and_compile()`, `PolicyLoadError`, `CompiledPolicy`) — **implemented** |
 | `engine.py` | Top-to-bottom rule evaluation (`evaluate()` — detectors, tool_block, tool_allow, param_rule, default decision) — **implemented** |
 | `proxy.py` | Stdio MCP proxy — LSP-framed bidirectional relay with policy interception (`read_message`, `write_message`, `_intercepting_relay`, `StdioProxy`) — **implemented** |
-| `session.py` | Sliding-window deque of recent calls for chain detection (stub) |
+| `session.py` | Sliding-window deque of recent calls for chain detection (`SessionEntry`, `SessionStore`) — **implemented** |
 | `audit.py` | Async SQLite writer with SHA-256 hash chaining (stub) |
 | `cli.py` | Click CLI: `init` (stub), `start` (hardened — env var override, `--verbose`, startup banner, error handling), `logs` (stub) — **implemented** |
 
@@ -86,6 +86,7 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `tests/test_detectors/test_ssrf.py` — 17 SSRF detector tests (8 positive, 7 negative, 2 edge cases; sync, no I/O)
 - `tests/test_detectors/test_secrets.py` — 19 secrets detector tests (8 positive, 7 negative, 2 edge cases + 2 additional coverage; sync, no I/O)
 - `tests/test_detectors/test_registry.py` — 8 detector pipeline tests (run_all wiring, enable/disable, multi-detector; sync, no I/O)
+- `tests/test_session.py` — 12 session store unit tests (empty, record, ordering, eviction, clear, timestamps; sync, no I/O)
 - `tests/test_cli.py` — 7 CLI tests (CliRunner for arg validation, subprocess for banner/error handling)
 - `tests/conftest.py` — Shared fixtures: `echo_server_cmd`, `proxy_process`, `proxy_with_policy`, `make_tool_call`, `compiled_policy_from_yaml`, `sample_policy`, `minimal_policy`
 - `tests/helpers/echo_mcp_server.py` — Minimal MCP server for proxy tests (no Node.js dependency)
