@@ -1,4 +1,4 @@
-"""Click CLI entry point — init, start, logs commands."""
+"""Click CLI entry point — init, start, logs, eval commands."""
 
 import logging
 import os
@@ -263,3 +263,92 @@ def logs(
                     pass
             record[col] = val
         click.echo(json.dumps(record, separators=(",", ":")))
+
+
+@main.command(name="eval")
+@click.option(
+    "--policy",
+    default=None,
+    type=click.Path(),
+    help="Policy file to evaluate against. Default: bundled reference policy.",
+)
+@click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    default=False,
+    help="Output full results as JSON instead of summary table.",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    default=False,
+    help="Enable debug logging to stderr.",
+)
+def eval_cmd(policy: str | None, json_output: bool, verbose: bool) -> None:
+    """Run the evaluation suite against a policy and report metrics."""
+    from pathlib import Path
+
+    from agentgate.policy import PolicyLoadError, load_and_compile
+
+    _setup_logging(verbose)
+
+    # --- Resolve policy path ---
+    if policy is not None:
+        policy_path = Path(policy)
+        if not policy_path.exists():
+            click.echo(f"Error: Policy file not found: {policy}", err=True)
+            raise SystemExit(2)
+    else:
+        candidates = [
+            Path("eval/policies/eval_reference.yaml"),
+            Path(__file__).resolve().parent.parent.parent
+            / "eval"
+            / "policies"
+            / "eval_reference.yaml",
+        ]
+        policy_path = None
+        for candidate in candidates:
+            if candidate.exists():
+                policy_path = candidate
+                break
+        if policy_path is None:
+            click.echo(
+                "Error: Reference policy not found. "
+                "Run from the repo root or use --policy to specify a path.",
+                err=True,
+            )
+            raise SystemExit(2)
+
+    policy_source = str(policy_path)
+
+    # --- Load policy ---
+    try:
+        compiled_policy = load_and_compile(policy_path)
+    except PolicyLoadError as e:
+        click.echo(f"Error loading policy: {e}", err=True)
+        raise SystemExit(2)
+
+    # --- Ensure eval package is importable ---
+    # The eval/ package lives at repo root (not inside src/agentgate/), so the
+    # repo root must be on sys.path for imports to work from console scripts.
+    repo_root = str(Path(__file__).resolve().parent.parent.parent)
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
+
+    # --- Run evaluation ---
+    from eval.harness import run_all
+    from eval.report import compute_metrics, format_json, format_table
+    from eval.scenarios import ALL_SCENARIOS
+
+    eval_run = run_all(ALL_SCENARIOS, compiled_policy, policy_source)
+    metrics = compute_metrics(eval_run)
+
+    # --- Output ---
+    if json_output:
+        click.echo(format_json(eval_run, metrics))
+    else:
+        click.echo(format_table(eval_run, metrics, policy_source))
+
+    raise SystemExit(0 if metrics.all_passed else 1)

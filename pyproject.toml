@@ -37,5 +37,5 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.ruff]
-src = ["src"]
+src = ["src", "eval"]
 line-length = 100

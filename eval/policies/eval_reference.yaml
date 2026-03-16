@@ -1,0 +1,79 @@
+version: "0.1"
+
+settings:
+  default_decision: allow
+
+detectors:
+  sql_injection: true
+  path_traversal: true
+  command_injection: true
+  ssrf_private_ip: true
+  secrets_in_params: true
+
+policies:
+  # Allowlist: only these 6 tools may be called
+  - name: eval-allowlist
+    type: tool_allow
+    tools:
+      - read_file
+      - write_file
+      - list_directory
+      - send_email
+      - fetch_url
+      - query_db
+
+  # Blocklist: destructive tools always blocked
+  - name: eval-blocklist
+    type: tool_block
+    tools:
+      - delete_file
+      - execute_shell
+      - drop_database
+
+  # Filesystem access restricted to /data/workspace/
+  - name: sandboxed-files
+    type: param_rule
+    match:
+      tool: read_file
+    check:
+      param: path
+      op: starts_with
+      value: "/data/workspace/"
+      negate: true
+    message: "File access restricted to /data/workspace/"
+
+  # Write access also restricted to /data/workspace/
+  - name: sandboxed-writes
+    type: param_rule
+    match:
+      tool: write_file
+    check:
+      param: path
+      op: starts_with
+      value: "/data/workspace/"
+      negate: true
+    message: "Write access restricted to /data/workspace/"
+
+  # Email restricted to internal addresses
+  - name: internal-email-only
+    type: param_rule
+    match:
+      tool: send_email
+    check:
+      param: to
+      op: matches
+      value: ".*@mycompany\\.com$"
+      negate: true
+    message: "Emails may only be sent to @mycompany.com addresses"
+
+  # Chain: block send_email to external after reading sensitive data
+  - name: block-exfil-after-sensitive-read
+    type: chain_rule
+    window: 10
+    steps:
+      - tool: read_file
+        output_matches: "BEGIN.*PRIVATE KEY|password|api[_-]?key|secret"
+      - tool: send_email
+        param_matches:
+          to: "^(?!.*@mycompany\\.com$).*$"
+    message: "Blocked: sending email after reading sensitive data"

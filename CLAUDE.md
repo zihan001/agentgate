@@ -47,7 +47,7 @@ Agent → Parser → Detectors → Rule Engine → Decision (allow/block) → To
 | `proxy.py` | Stdio MCP proxy — LSP-framed bidirectional relay with policy interception (`read_message`, `write_message`, `_intercepting_relay`, `StdioProxy`) — **implemented** |
 | `session.py` | Sliding-window deque of recent calls for chain detection (`SessionEntry`, `SessionStore`) — **implemented** |
 | `audit.py` | Background-thread SQLite writer with SHA-256 hash chaining (`AuditWriter`, `_compute_hash`, `verify_chain`) — **implemented** |
-| `cli.py` | Click CLI: `init` (copies starter policy to cwd), `start` (hardened — env var override, `--verbose`, `--audit-db`, startup banner, error handling), `logs` (read-only SQLite query, JSON Lines output, `--tail`, `--session`, `--decision`, `--db`, `--verify` hash chain) — **implemented** |
+| `cli.py` | Click CLI: `init` (copies starter policy to cwd), `start` (hardened — env var override, `--verbose`, `--audit-db`, startup banner, error handling), `logs` (read-only SQLite query, JSON Lines output, `--tail`, `--session`, `--decision`, `--db`, `--verify` hash chain), `eval` (run 25 evaluation scenarios, compute BU/ASR/FPR/latency metrics, `--policy`, `--json`, `--verbose`, exit codes 0/1/2) — **implemented** |
 
 ### Detectors (`src/agentgate/detectors/`)
 
@@ -58,6 +58,15 @@ Agent → Parser → Detectors → Rule Engine → Decision (allow/block) → To
 - `ssrf.py` — Private/loopback/link-local/reserved IP detection in URLs and bare IPs via `ipaddress` stdlib — **implemented**
 - `secrets.py` — AWS keys, GitHub tokens, PEM private keys, passwords, Slack/Stripe/Bearer tokens via exact-format regex — **implemented**
 - `chain.py` — Sequential attack pattern matching: `evaluate_chain_rules()` scans session history for ordered multi-step tool-call sequences — **implemented**
+
+### Evaluation Framework (`eval/`)
+
+| Module | Role |
+|--------|------|
+| `harness.py` | Scenario runner: `Scenario`/`ScenarioStep` dataclasses, `StepResult`/`ScenarioResult`/`EvalRun` result types, `run_scenario()`, `run_all()` — drives `evaluate()` directly (no proxy), grades utility/security outcomes — **implemented** |
+| `report.py` | Metric computation and formatting: `EvalMetrics` dataclass, `compute_metrics()`, `format_table()`, `format_json()` — **implemented** |
+| `scenarios/` | 25 scenario definitions: `__init__.py` (re-exports), `benign.py` (B1–B10), `adversarial.py` (A1–A15) — **implemented** |
+| `policies/eval_reference.yaml` | Reference policy for eval: allowlist, blocklist, param_rules, chain_rule with all 5 detectors enabled — **implemented** |
 
 ### Policy Language (YAML)
 
@@ -72,6 +81,7 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `src/agentgate/proxy.py` — Stdio proxy with policy interception: `_intercepting_relay` parses tool calls, evaluates against policy, blocks or forwards, logs decisions to audit writer (fully implemented)
 - `agentgate.yaml.example` — Golden-path policy demonstrating all features
 - `docs/mvp-spec.md` — Frozen MVP specification with success criteria and evaluation plan
+- `docs/evaluation.md` — Evaluation report: methodology, results (BU/ASR/FPR/latency), per-scenario breakdown, OWASP ASI analysis, known limitations
 - `tests/test_parser.py` — 12 parser unit tests (sync, no I/O)
 - `tests/test_models.py` — 11 model validation tests
 - `tests/test_policy.py` — 11 policy loader tests (sync, tmp_path I/O only)
@@ -98,6 +108,12 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `tests/helpers/echo_mcp_server.py` — Minimal MCP server for proxy tests (no Node.js dependency)
 - `tests/helpers/mcp_client.py` — Shared test helpers (`send_message`, `read_message`, `do_initialize`)
 - `tests/helpers/proxy_with_policy.py` — Test harness for spawning proxy with a policy via env var
+- `eval/harness.py` — Evaluation harness: scenario/step dataclasses, result types, `run_scenario()` + `run_all()` runner functions; drives engine directly with fresh SessionStore per scenario, grades utility_pass/security_pass (fully implemented)
+- `eval/report.py` — Evaluation report: `EvalMetrics` dataclass, `compute_metrics()` (BU/ASR/FPR/median latency), `format_table()` (human-readable), `format_json()` (machine-readable); handles zero-denominator edge cases (fully implemented)
+- `tests/test_eval_scenarios.py` — 14 eval scenario tests (7 structural validation + 7 functional; scenario counts, ID formats, expected decisions, chain detection, utility/security pass; sync, no I/O except policy file)
+- `tests/test_eval_harness.py` — 10 eval harness tests (benign allow, adversarial block, false negative, false positive, multi-step chain, simulated_response guard, policy override, run_all aggregation, timing, empty list; sync, no I/O except tmp_path for policy overrides)
+- `tests/test_report.py` — 10 eval report tests (metric computation: perfect/partial/full failure/empty categories, median latency, format_table content, format_json validity and metric matching; sync, no I/O)
+- `tests/test_cli_eval.py` — 7 CLI eval tests (default run, custom policy, JSON output, JSON metrics, missing policy exit 2, bad policy exit 2, failure exit 1; CliRunner, tmp_path)
 - `examples/demo_agent.py` — Scripted golden path demo: 5 tool calls through the engine showing detector, param_rule, and chain_rule blocking (exit 0 = pass)
 - `examples/email_mcp_server.py` — Minimal MCP server: `send_email` tool over LSP-framed JSON-RPC (stdlib only, no `mcp` SDK)
 - `examples/policies/demo.yaml` — Demo policy exercising all 4 rule types + all 5 detectors
