@@ -81,6 +81,7 @@ Four rule types: `tool_allow`, `tool_block`, `param_rule`, `chain_rule`. See `ag
 - `src/agentgate/proxy.py` — Stdio proxy with policy interception: `_intercepting_relay` parses tool calls, evaluates against policy, blocks or forwards, logs decisions to audit writer (fully implemented)
 - `agentgate.yaml.example` — Golden-path policy demonstrating all features
 - `docs/mvp-spec.md` — Frozen MVP specification with success criteria and evaluation plan
+- `docs/evaluation.md` — Evaluation report: methodology, results (BU/ASR/FPR/latency), per-scenario breakdown, OWASP ASI analysis, known limitations
 - `tests/test_parser.py` — 12 parser unit tests (sync, no I/O)
 - `tests/test_models.py` — 11 model validation tests
 - `tests/test_policy.py` — 11 policy loader tests (sync, tmp_path I/O only)

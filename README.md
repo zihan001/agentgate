@@ -141,7 +141,16 @@ AgentGate includes built-in detectors for the most common tool-misuse attacks:
 
 ## Evaluation Results
 
-> Coming soon. Evaluation harness and published metrics are planned for v0.1.
+25 deterministic scenarios (10 benign + 15 adversarial) evaluated against the reference policy with all detectors enabled:
+
+| Metric | Target | Result |
+|--------|--------|--------|
+| Benign Utility (BU) | ≥ 90% | 100% (10/10) |
+| Attack Success Rate (ASR) | ≤ 10% | 0% (0/15) |
+| False Positive Rate (FPR) | ≤ 10% | 0% (0/10) |
+| Median Latency | ≤ 15ms | 0.06ms |
+
+See [Evaluation Report](docs/evaluation.md) for full methodology, per-scenario results, and OWASP ASI category breakdown.
 
 ## Comparison
 
@@ -149,16 +158,15 @@ AgentGate includes built-in detectors for the most common tool-misuse attacks:
 |---------|-----------|-------------------|----------|-------------------|
 | Open source | Apache-2.0 | Frozen | Apache-2.0 | Apache-2.0 |
 | Policy language | YAML DSL | Python DSL | — | Cedar/OPA |
-| Chain detection | Planned | Yes | No | No |
+| Chain detection | **Yes** | Yes | No | No |
 | Python-native | Yes | Yes | No (Go) | No (Rust) |
 | Active development | Yes | No (acquired) | Solo | Yes |
-| Published eval metrics | Planned | No | No | No |
+| Published eval metrics | **Yes** | No | No | No |
 
 ## Documentation
 
 - [MVP Specification](docs/mvp-spec.md)
-
-> Additional documentation (policy language reference, detector descriptions, architecture overview) will be added as features are implemented.
+- [Evaluation Report](docs/evaluation.md)
 
 ## Development
 
